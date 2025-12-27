@@ -21,9 +21,9 @@ const MUSCLE_GROUPS = [
   "core",
   "glutes",
 ] as const;
-type MuscleGroup = (typeof MUSCLE_GROUPS)[number];
+export type MuscleGroup = (typeof MUSCLE_GROUPS)[number];
 
-type Exercise = {
+export type Exercise = {
   id: string;
   name: string;
   muscleGroup: MuscleGroup;
@@ -38,7 +38,7 @@ type Exercise = {
   secondaryMuscles?: string[];
 };
 
-type Workout = {
+export type Workout = {
   id: string;
   name: string;
   description?: string;
@@ -48,7 +48,7 @@ type Workout = {
   exercises: Exercise[];
 };
 
-type ActiveSet = {
+export type ActiveSet = {
   setNumber: number;
   weight: number | null;
   reps: number | null;
@@ -56,7 +56,7 @@ type ActiveSet = {
   completed: boolean;
 };
 
-type ExerciseSessionData = {
+export type ExerciseSessionData = {
   exerciseId: string;
   name: string;
   muscleGroup: string;
@@ -65,7 +65,7 @@ type ExerciseSessionData = {
   volume: number;
 };
 
-type WorkoutSessionLog = {
+export type WorkoutSessionLog = {
   id: string;
   workoutId: string;
   workoutName: string;
@@ -79,7 +79,7 @@ type WorkoutSessionLog = {
   exercises: ExerciseSessionData[];
 };
 
-type ExerciseRecord = {
+export type ExerciseRecord = {
   exerciseId: string;
   exerciseName: string;
   bestVolume: number;
