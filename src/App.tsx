@@ -516,70 +516,85 @@ function App() {
     }
   };
 
-  const handleCompleteWorkout = async () => {
-    if (selectedWorkout && sessionStart && workoutStartTime && user) {
-      const end = new Date().toISOString();
-      const durationSeconds = Math.floor((Date.now() - workoutStartTime) / 1000);
-      const durationMinutes = Math.round(durationSeconds / 60);
+  
+// 🔧 QUICK FIX für App.tsx
+// Suche die handleCompleteWorkout Funktion (ca. Zeile 530)
+// Ersetze den supabase.insert Block:
 
-      const allExercises = Object.values(workoutExercisesData);
-      const totalVol = allExercises.reduce((sum, ex) => sum + ex.volume, 0);
-      const totalSets = allExercises.reduce((sum, ex) => sum + ex.sets.filter((s) => s.completed).length, 0);
+const handleCompleteWorkout = async () => {
+  if (selectedWorkout && sessionStart && workoutStartTime && user) {
+    const end = new Date().toISOString();
+    const durationSeconds = Math.floor((Date.now() - workoutStartTime) / 1000);
+    const durationMinutes = Math.round(durationSeconds / 60);
 
-      const log: WorkoutSessionLog = {
-        id: crypto.randomUUID(),
-        workoutId: selectedWorkout.id,
-        workoutName: selectedWorkout.name,
-        startedAt: sessionStart,
-        endedAt: end,
-        durationMinutes,
-        durationSeconds,
-        totalVolume: totalVol,
-        totalSetsCompleted: totalSets,
-        isDeload,
-        notes: sessionNotes,
-        exercises: allExercises,
-        newPRs: sessionPRs
+    const allExercises = Object.values(workoutExercisesData);
+    const totalVol = allExercises.reduce((sum, ex) => sum + ex.volume, 0);
+    const totalSets = allExercises.reduce((sum, ex) => sum + ex.sets.filter((s) => s.completed).length, 0);
+
+    const log: WorkoutSessionLog = {
+      id: crypto.randomUUID(),
+      workoutId: selectedWorkout.id,
+      workoutName: selectedWorkout.name,
+      startedAt: sessionStart,
+      endedAt: end,
+      durationMinutes,
+      durationSeconds,
+      totalVolume: totalVol,
+      totalSetsCompleted: totalSets,
+      isDeload,
+      notes: sessionNotes,
+      exercises: allExercises,
+      newPRs: sessionPRs
+    };
+
+    setSessionLogs((prev) => [log, ...prev]);
+
+    try {
+      // ✏️ GEÄNDERT: Nur Felder die in DB existieren
+      const sessionData: any = {
+        user_id: user.id,
+        workout_id: log.workoutId,
+        workout_name: log.workoutName,
+        started_at: log.startedAt,
+        ended_at: log.endedAt,
+        duration_minutes: log.durationMinutes,
+        total_volume: log.totalVolume,
+        total_sets_completed: log.totalSetsCompleted, // ⚠️ Check field name!
+        is_deload: log.isDeload,
+        notes: log.notes,
+        exercises: log.exercises
       };
 
-      setSessionLogs((prev) => [log, ...prev]);
+      // 🆕 NEU: Nur hinzufügen wenn Migration durchgeführt wurde
+      // Kommentiere diese Zeilen aus bis Migration läuft:
+      // if (log.durationSeconds) sessionData.duration_seconds = log.durationSeconds;
+      // if (log.newPRs) sessionData.new_prs = log.newPRs;
 
-      try {
-        await supabase.from('workout_sessions').insert({
-          user_id: user.id,
-          workout_id: log.workoutId,
-          workout_name: log.workoutName,
-          started_at: log.startedAt,
-          ended_at: log.endedAt,
-          duration_minutes: log.durationMinutes,
-          duration_seconds: log.durationSeconds,
-          total_volume: log.totalVolume,
-          total_sets_completed: log.totalSetsCompleted,
-          is_deload: log.isDeload,
-          notes: log.notes,
-          exercises: log.exercises,
-          new_prs: log.newPRs
-        });
+      await supabase.from('workout_sessions').insert(sessionData);
 
-        await supabase.from('workouts').update({
-          last_performed: end,
-          updated_at: new Date().toISOString()
-        }).eq('id', selectedWorkout.id);
+      await supabase.from('workouts').update({
+        last_performed: end,
+        updated_at: new Date().toISOString()
+      }).eq('id', selectedWorkout.id);
 
-        setWorkouts(prev => prev.map(w => 
-          w.id === selectedWorkout.id ? { ...w, lastPerformed: end } : w
-        ));
+      setWorkouts(prev => prev.map(w => 
+        w.id === selectedWorkout.id ? { ...w, lastPerformed: end } : w
+      ));
 
-      } catch (err) {
-        console.error("Error saving workout session:", err);
-      }
-
-      setWorkoutDuration(durationSeconds);
-      setTotalVolume(totalVol);
-      setTotalSetsCompleted(totalSets);
-      setShowSummary(true);
+    } catch (err: any) {
+      console.error("Error saving workout session:", err);
+      // 🆕 NEU: Zeige detaillierten Fehler
+      console.error("Error details:", err.message, err.details);
+      alert(`Fehler beim Speichern: ${err.message}`);
     }
-  };
+
+    setWorkoutDuration(durationSeconds);
+    setTotalVolume(totalVol);
+    setTotalSetsCompleted(totalSets);
+    setShowSummary(true);
+  }
+};
+
 
   const handleCreateWorkout = async () => {
     if (!newName.trim() || !user) return;
