@@ -559,7 +559,7 @@ const handleCompleteWorkout = async () => {
         ended_at: log.endedAt,
         duration_minutes: log.durationMinutes,
         total_volume: log.totalVolume,
-        total_sets_completed: log.totalSetsCompleted, // ⚠️ Check field name!
+        total_sets: log.totalSetsCompleted,
         is_deload: log.isDeload,
         notes: log.notes,
         exercises: log.exercises
@@ -567,8 +567,8 @@ const handleCompleteWorkout = async () => {
 
       // 🆕 NEU: Nur hinzufügen wenn Migration durchgeführt wurde
       // Kommentiere diese Zeilen aus bis Migration läuft:
-      // if (log.durationSeconds) sessionData.duration_seconds = log.durationSeconds;
-      // if (log.newPRs) sessionData.new_prs = log.newPRs;
+      if (log.durationSeconds) sessionData.duration_seconds = log.durationSeconds;
+      if (log.newPRs) sessionData.new_prs = log.newPRs;
 
       await supabase.from('workout_sessions').insert(sessionData);
 
