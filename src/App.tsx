@@ -8,7 +8,6 @@ import type { User } from '@supabase/supabase-js';
 // Components
 import { StatsCard } from "./components/StatsCard";
 import { WorkoutCard } from "./components/WorkoutCard";
-import { ExerciseItem } from "./components/ExerciseItem";
 import { ActiveWorkoutCard } from "./components/ActiveWorkoutCard";
 import { RestTimer } from "./components/RestTimer";
 import { ExerciseDetailModal } from "./components/ExerciseDetailModal";
@@ -159,15 +158,18 @@ function App() {
 
   // Drag & Drop State
   const [draggedWorkoutIndex, setDraggedWorkoutIndex] = useState<number | null>(null);
+  const [draggedExerciseIndex, setDraggedExerciseIndex] = useState<number | null>(null);
 
   // Active Workout State
-  const [mode, setMode] = useState<"overview" | "active" | "selectExercises">("overview");
+  const [mode, setMode] = useState<"overview" | "active">("overview");
   const [selectedWorkoutId, setSelectedWorkoutId] = useState<string | null>(null);
-  const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
+  const [selectedExerciseId, setSelectedExerciseId] = useState<string | null>(null); // 🆕 NEU: Welche Übung gerade bearbeitet wird
+  const [workoutExercises, setWorkoutExercises] = useState<Exercise[]>([]); // 🆕 NEU: Liste der Übungen im Workout
   const [workoutExercisesData, setWorkoutExercisesData] = useState<Record<string, ExerciseSessionData>>({});
   const [activeSets, setActiveSets] = useState<ActiveSet[]>([
     { setNumber: 1, weight: null, reps: null, rpe: null, completed: false },
   ]);
+
   const [showRestTimer, setShowRestTimer] = useState(false);
   const [customRestSeconds, setCustomRestSeconds] = useState(90);
   const [autoStartRest, setAutoStartRest] = useState(true);
@@ -175,9 +177,9 @@ function App() {
   const [sessionStart, setSessionStart] = useState<string | null>(null);
   const [sessionNotes, setSessionNotes] = useState("");
 
-  // Exercise Selection State
-  const [selectedExerciseIds, setSelectedExerciseIds] = useState<string[]>([]);
+  // 🆕 NEU: Exercise Search Modal State
   const [showExerciseSearchModal, setShowExerciseSearchModal] = useState(false);
+  const [selectedExerciseIds, setSelectedExerciseIds] = useState<string[]>([]);
 
   // Active Workout Stats
   const [workoutStartTime, setWorkoutStartTime] = useState<number | null>(null);
@@ -191,15 +193,9 @@ function App() {
   const [sessionPRs, setSessionPRs] = useState<PersonalRecord[]>([]);
   const [showPRNotification, setShowPRNotification] = useState(false);
 
-  // Exercise Search/Detail
-  const [exerciseSearch, setExerciseSearch] = useState("");
-  const [exerciseFilter, setExerciseFilter] = useState<string>("all");
-  const [selectedExerciseDetail, setSelectedExerciseDetail] = useState<Exercise | null>(null);
-  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
-  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
-
   // Session Detail Modal
   const [selectedSession, setSelectedSession] = useState<WorkoutSessionLog | null>(null);
+  const [selectedExerciseDetail, setSelectedExerciseDetail] = useState<Exercise | null>(null);
 
   // --- Effects ---
 
@@ -236,7 +232,6 @@ function App() {
         if (logsResponse.error) throw logsResponse.error;
         if (recordsResponse.error) throw recordsResponse.error;
 
-        // Map Workouts
         const loadedWorkouts: Workout[] = (workoutsResponse.data || []).map((w: any) => ({
           id: w.id,
           name: w.name,
@@ -248,7 +243,6 @@ function App() {
         }));
         setWorkouts(loadedWorkouts);
 
-        // Map Logs
         const loadedLogs: WorkoutSessionLog[] = (logsResponse.data || []).map((l: any) => ({
           id: l.id,
           workoutId: l.workout_id,
@@ -258,7 +252,7 @@ function App() {
           durationMinutes: l.duration_minutes,
           durationSeconds: l.duration_seconds,
           totalVolume: Number(l.total_volume),
-          totalSetsCompleted: l.total_sets_completed,
+          totalSetsCompleted: l.total_sets,
           isDeload: l.is_deload,
           notes: l.notes,
           exercises: l.exercises || [],
@@ -266,7 +260,6 @@ function App() {
         }));
         setSessionLogs(loadedLogs);
 
-        // Map Records
         const recordsMap: Record<string, ExerciseRecord> = {};
         (recordsResponse.data || []).forEach((r: any) => {
           recordsMap[r.exercise_id] = {
@@ -348,7 +341,6 @@ function App() {
     const currentRecord = exerciseRecords[exerciseId];
     const newPRs: PersonalRecord[] = [];
 
-    // Check for PRs
     if (!currentRecord || maxVolume > currentRecord.bestVolume) {
       newPRs.push({
         exerciseId,
@@ -371,14 +363,12 @@ function App() {
       });
     }
 
-    // Add PRs to session tracking
     if (newPRs.length > 0) {
       setSessionPRs(prev => [...prev, ...newPRs]);
       setShowPRNotification(true);
       setTimeout(() => setShowPRNotification(false), 5000);
     }
 
-    // Update record if new PR
     if (!currentRecord || maxVolume > currentRecord.bestVolume || max1RM > currentRecord.estimated1RM) {
       const newRecord = {
         exerciseId,
@@ -406,6 +396,7 @@ function App() {
     }
   };
 
+  // 🆕 NEU: Start Workout mit cleanerem Flow
   const handleStartWorkout = (id: string) => {
     const workout = workouts.find(w => w.id === id);
     if (!workout) return;
@@ -413,37 +404,25 @@ function App() {
     setSelectedWorkoutId(id);
     setSessionPRs([]);
 
-    // Check for last session exercises
+    // Load exercises from last session
     const lastSession = sessionLogs
       .filter(log => log.workoutId === id)
       .sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())[0];
 
+    let exercises: Exercise[] = [];
+
     if (lastSession && lastSession.exercises.length > 0) {
-      // Load from last session
-      const exercisesFromSession = lastSession.exercises
+      exercises = lastSession.exercises
         .map(ex => ALL_EXERCISES.find(e => e.id === ex.exerciseId))
         .filter((ex): ex is Exercise => ex !== undefined);
-
-      setWorkouts(prev => prev.map(w => 
-        w.id === id ? { ...w, exercises: exercisesFromSession } : w
-      ));
-
-      startWorkoutWithExercises(id, exercisesFromSession);
     } else if (workout.exercises.length > 0) {
-      // Use template
-      startWorkoutWithExercises(id, workout.exercises);
-    } else {
-      // Show selection modal
-      setMode("selectExercises");
-      setSelectedExerciseIds([]);
-      setShowExerciseSearchModal(true);
+      exercises = workout.exercises;
     }
-  };
 
-  const startWorkoutWithExercises = (id: string, exercises: Exercise[]) => {
-    setCurrentExerciseIndex(0);
-    setActiveSets([{ setNumber: 1, weight: null, reps: null, rpe: null, completed: false }]);
+    setWorkoutExercises(exercises);
     setWorkoutExercisesData({});
+    setSelectedExerciseId(null); // 🆕 Keine Übung ausgewählt
+    setActiveSets([{ setNumber: 1, weight: null, reps: null, rpe: null, completed: false }]);
     setMode("active");
     setIsDeload(false);
     setSessionStart(new Date().toISOString());
@@ -456,73 +435,92 @@ function App() {
     setShowSummary(false);
   };
 
-  const handleConfirmExerciseSelection = () => {
-    if (selectedExerciseIds.length === 0) return;
-
-    const selectedExercises = selectedExerciseIds
+  // 🆕 NEU: Add Exercises to Workout
+  const handleAddExercisesToWorkout = () => {
+    const newExercises = selectedExerciseIds
       .map(id => ALL_EXERCISES.find(ex => ex.id === id))
       .filter((ex): ex is Exercise => ex !== undefined);
 
-    if (selectedWorkoutId) {
-      setWorkouts(prev => prev.map(w => 
-        w.id === selectedWorkoutId 
-          ? { ...w, exercises: selectedExercises, exerciseCount: selectedExercises.length }
-          : w
-      ));
+    setWorkoutExercises(prev => [...prev, ...newExercises]);
+    setSelectedExerciseIds([]);
+    setShowExerciseSearchModal(false);
+  };
 
-      const updatedWorkout = workouts.find(w => w.id === selectedWorkoutId);
-      if (updatedWorkout) {
-        saveWorkoutToDb({
-          ...updatedWorkout,
-          exercises: selectedExercises,
-          exerciseCount: selectedExercises.length
-        });
-      }
+  // 🆕 NEU: Select Exercise to Edit
+  const handleSelectExercise = (exerciseId: string) => {
+    setSelectedExerciseId(exerciseId);
 
-      setShowExerciseSearchModal(false);
-      startWorkoutWithExercises(selectedWorkoutId, selectedExercises);
+    // Load existing data or create new
+    if (workoutExercisesData[exerciseId]) {
+      setActiveSets(workoutExercisesData[exerciseId].sets);
+    } else {
+      setActiveSets([{ setNumber: 1, weight: null, reps: null, rpe: null, completed: false }]);
     }
   };
 
-  const handleNextExercise = () => {
-    if (!selectedWorkout) return;
+  // 🆕 NEU: Save current exercise and go back to list
+  const handleSaveExercise = () => {
+    if (!selectedExerciseId) return;
 
-    const currentExercise = selectedWorkout.exercises[currentExerciseIndex];
+    const exercise = workoutExercises.find(ex => ex.id === selectedExerciseId);
+    if (!exercise) return;
 
     const volume = activeSets.reduce((sum, set) => {
       if (set.weight && set.reps && set.completed) return sum + set.weight * set.reps;
       return sum;
     }, 0);
 
-    setWorkoutExercisesData((prev) => ({
+    setWorkoutExercisesData(prev => ({
       ...prev,
-      [currentExercise.id]: {
-        exerciseId: currentExercise.id,
-        name: currentExercise.name,
-        muscleGroup: currentExercise.muscleGroup,
-        note: currentExercise.note,
+      [selectedExerciseId]: {
+        exerciseId: selectedExerciseId,
+        name: exercise.name,
+        muscleGroup: exercise.muscleGroup,
+        note: exercise.note,
         sets: activeSets,
         volume,
-      },
+      }
     }));
 
-    updateExerciseRecord(currentExercise.id, currentExercise.name, activeSets, new Date().toISOString());
+    updateExerciseRecord(selectedExerciseId, exercise.name, activeSets, new Date().toISOString());
+    setSelectedExerciseId(null);
+  };
 
-    if (currentExerciseIndex < selectedWorkout.exercises.length - 1) {
-      setCurrentExerciseIndex((prev) => prev + 1);
-      setActiveSets([{ setNumber: 1, weight: null, reps: null, rpe: null, completed: false }]);
-    } else {
-      handleCompleteWorkout();
+  // 🆕 NEU: Remove exercise from workout
+  const handleRemoveExercise = (exerciseId: string) => {
+    setWorkoutExercises(prev => prev.filter(ex => ex.id !== exerciseId));
+
+    // Remove data
+    setWorkoutExercisesData(prev => {
+      const newData = { ...prev };
+      delete newData[exerciseId];
+      return newData;
+    });
+
+    if (selectedExerciseId === exerciseId) {
+      setSelectedExerciseId(null);
     }
   };
 
-  
-// 🔧 QUICK FIX für App.tsx
-// Suche die handleCompleteWorkout Funktion (ca. Zeile 530)
-// Ersetze den supabase.insert Block:
+  // 🆕 NEU: Drag & Drop Exercises
+  const handleMoveExercise = (from: number, to: number) => {
+    setWorkoutExercises(prev => {
+      const exercises = [...prev];
+      if (to < 0 || to >= exercises.length) return prev;
 
-const handleCompleteWorkout = async () => {
-  if (selectedWorkout && sessionStart && workoutStartTime && user) {
+      const [moved] = exercises.splice(from, 1);
+      exercises.splice(to, 0, moved);
+
+      return exercises;
+    });
+  };
+
+  const handleCompleteWorkout = async () => {
+    if (!selectedWorkoutId || !sessionStart || !workoutStartTime || !user) return;
+
+    const workout = workouts.find(w => w.id === selectedWorkoutId);
+    if (!workout) return;
+
     const end = new Date().toISOString();
     const durationSeconds = Math.floor((Date.now() - workoutStartTime) / 1000);
     const durationMinutes = Math.round(durationSeconds / 60);
@@ -533,8 +531,8 @@ const handleCompleteWorkout = async () => {
 
     const log: WorkoutSessionLog = {
       id: crypto.randomUUID(),
-      workoutId: selectedWorkout.id,
-      workoutName: selectedWorkout.name,
+      workoutId: workout.id,
+      workoutName: workout.name,
       startedAt: sessionStart,
       endedAt: end,
       durationMinutes,
@@ -550,7 +548,6 @@ const handleCompleteWorkout = async () => {
     setSessionLogs((prev) => [log, ...prev]);
 
     try {
-      // ✏️ GEÄNDERT: Nur Felder die in DB existieren
       const sessionData: any = {
         user_id: user.id,
         workout_id: log.workoutId,
@@ -565,8 +562,6 @@ const handleCompleteWorkout = async () => {
         exercises: log.exercises
       };
 
-      // 🆕 NEU: Nur hinzufügen wenn Migration durchgeführt wurde
-      // Kommentiere diese Zeilen aus bis Migration läuft:
       if (log.durationSeconds) sessionData.duration_seconds = log.durationSeconds;
       if (log.newPRs) sessionData.new_prs = log.newPRs;
 
@@ -574,16 +569,17 @@ const handleCompleteWorkout = async () => {
 
       await supabase.from('workouts').update({
         last_performed: end,
+        exercises: workoutExercises,
+        exercise_count: workoutExercises.length,
         updated_at: new Date().toISOString()
-      }).eq('id', selectedWorkout.id);
+      }).eq('id', workout.id);
 
       setWorkouts(prev => prev.map(w => 
-        w.id === selectedWorkout.id ? { ...w, lastPerformed: end } : w
+        w.id === workout.id ? { ...w, lastPerformed: end, exercises: workoutExercises, exerciseCount: workoutExercises.length } : w
       ));
 
     } catch (err: any) {
       console.error("Error saving workout session:", err);
-      // 🆕 NEU: Zeige detaillierten Fehler
       console.error("Error details:", err.message, err.details);
       alert(`Fehler beim Speichern: ${err.message}`);
     }
@@ -592,9 +588,23 @@ const handleCompleteWorkout = async () => {
     setTotalVolume(totalVol);
     setTotalSetsCompleted(totalSets);
     setShowSummary(true);
-  }
-};
+  };
 
+  // 🆕 NEU: Return to Dashboard (auch während Workout)
+  const handleReturnToDashboard = () => {
+    if (mode === "active") {
+      if (!confirm("Workout beenden ohne zu speichern?")) return;
+    }
+
+    setMode("overview");
+    setSelectedWorkoutId(null);
+    setSelectedExerciseId(null);
+    setWorkoutExercises([]);
+    setWorkoutExercisesData({});
+    setWorkoutStartTime(null);
+    setWorkoutElapsedSeconds(0);
+    setSessionPRs([]);
+  };
 
   const handleCreateWorkout = async () => {
     if (!newName.trim() || !user) return;
@@ -672,63 +682,6 @@ const handleCompleteWorkout = async () => {
     }
   };
 
-  const handleAddExerciseToWorkout = (workoutId: string, exerciseId: string) => {
-    const exerciseToAdd = ALL_EXERCISES.find((ex) => ex.id === exerciseId);
-    if (!exerciseToAdd) return;
-
-    let updatedWorkout: Workout | null = null;
-
-    setWorkouts((prev) => prev.map((w) => {
-      if (w.id !== workoutId) return w;
-      if (w.exercises.some((ex) => ex.id === exerciseId)) return w;
-
-      const updated = [...w.exercises, { ...exerciseToAdd }];
-      updatedWorkout = { ...w, exercises: updated, exerciseCount: updated.length };
-      return updatedWorkout;
-    }));
-
-    if (updatedWorkout) saveWorkoutToDb(updatedWorkout);
-  };
-
-  const handleRemoveExerciseFromWorkout = (workoutId: string, exerciseId: string) => {
-    let updatedWorkout: Workout | null = null;
-
-    setWorkouts((prev) => prev.map((w) => {
-      if (w.id !== workoutId) return w;
-      const updated = w.exercises.filter((ex) => ex.id !== exerciseId);
-      updatedWorkout = { ...w, exercises: updated, exerciseCount: updated.length };
-      return updatedWorkout;
-    }));
-
-    if (updatedWorkout) saveWorkoutToDb(updatedWorkout);
-
-    if (selectedWorkoutId === workoutId) {
-      setCurrentExerciseIndex((prev) => Math.max(0, prev - 1));
-    }
-  };
-
-  const handleMoveExercise = (workoutId: string, from: number, to: number) => {
-    let updatedWorkout: Workout | null = null;
-
-    setWorkouts((prev) => prev.map((w) => {
-      if (w.id !== workoutId) return w;
-      const exercises = [...w.exercises];
-      if (to < 0 || to >= exercises.length) return w;
-
-      const [moved] = exercises.splice(from, 1);
-      exercises.splice(to, 0, moved);
-
-      updatedWorkout = { ...w, exercises };
-      return updatedWorkout;
-    }));
-
-    if (updatedWorkout) saveWorkoutToDb(updatedWorkout);
-
-    if (selectedWorkoutId === workoutId) {
-      setCurrentExerciseIndex(to);
-    }
-  };
-
   const handleMoveWorkout = (from: number, to: number) => {
     setWorkouts((prev) => {
       const workoutsCopy = [...prev];
@@ -741,16 +694,9 @@ const handleCompleteWorkout = async () => {
     });
   };
 
-  const filteredExercises = ALL_EXERCISES.filter((ex) => {
-    if (exerciseFilter !== "all" && ex.muscleGroup !== exerciseFilter) return false;
-    if (!exerciseSearch.trim()) return true;
-
-    const q = exerciseSearch.toLowerCase();
-    return ex.name.toLowerCase().includes(q) || ex.muscleGroup.toLowerCase().includes(q);
-  });
-
   const selectedWorkout = workouts.find((w) => w.id === selectedWorkoutId) || null;
   const totalVolumeAllTime = sessionLogs.reduce((sum, log) => sum + log.totalVolume, 0);
+  const selectedExercise = workoutExercises.find(ex => ex.id === selectedExerciseId);
 
   const formatTime = (seconds: number): string => {
     const hours = Math.floor(seconds / 3600);
@@ -768,12 +714,23 @@ const handleCompleteWorkout = async () => {
 
   return (
     <div className="min-h-screen bg-black text-white p-6">
-      <button
-        onClick={() => supabase.auth.signOut()}
-        className="fixed top-4 right-4 bg-slate-900 border border-slate-800 hover:bg-red-900/20 hover:text-red-400 hover:border-red-900 px-4 py-2 rounded-lg text-xs font-medium z-50 transition-all"
-      >
-        Sign Out
-      </button>
+      {/* Header Buttons */}
+      <div className="fixed top-4 right-4 flex gap-2 z-50">
+        {mode === "active" && (
+          <button
+            onClick={handleReturnToDashboard}
+            className="bg-slate-900 border border-slate-800 hover:bg-blue-900/20 hover:text-blue-400 hover:border-blue-900 px-4 py-2 rounded-lg text-xs font-medium transition-all"
+          >
+            📊 Dashboard
+          </button>
+        )}
+        <button
+          onClick={() => supabase.auth.signOut()}
+          className="bg-slate-900 border border-slate-800 hover:bg-red-900/20 hover:text-red-400 hover:border-red-900 px-4 py-2 rounded-lg text-xs font-medium transition-all"
+        >
+          Sign Out
+        </button>
+      </div>
 
       {isLoadingData && <div className="bg-blue-900/20 border border-blue-900 rounded-lg p-3 mb-4 text-sm">Lade Daten...</div>}
       {error && <div className="bg-red-900/20 border border-red-900 rounded-lg p-3 mb-4 text-sm">{error}</div>}
@@ -789,6 +746,7 @@ const handleCompleteWorkout = async () => {
         </div>
       )}
 
+      {/* --- OVERVIEW MODE --- */}
       {mode === "overview" && !isLoadingData && (
         <>
           <div className="mb-8">
@@ -812,6 +770,7 @@ const handleCompleteWorkout = async () => {
             </div>
           </div>
 
+          {/* Create Workout Form */}
           <div className="bg-slate-900 rounded-xl border border-slate-800 p-6 mb-8">
             <h2 className="text-xl font-bold mb-4">✨ Create a new workout</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
@@ -854,6 +813,7 @@ const handleCompleteWorkout = async () => {
             </button>
           </div>
 
+          {/* Workout List */}
           <div className="mb-8">
             <h2 className="text-2xl font-bold mb-4">Your workouts</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -862,7 +822,7 @@ const handleCompleteWorkout = async () => {
                   key={w.id}
                   draggable
                   onDragStart={() => setDraggedWorkoutIndex(index)}
-                  onDragOver={(e) => { e.preventDefault(); setDraggedWorkoutIndex(index); }}
+                  onDragOver={(e) => { e.preventDefault(); }}
                   onDrop={() => {
                     if (draggedWorkoutIndex !== null) handleMoveWorkout(draggedWorkoutIndex, index);
                     setDraggedWorkoutIndex(null);
@@ -887,6 +847,7 @@ const handleCompleteWorkout = async () => {
             </div>
           </div>
 
+          {/* Recent Sessions */}
           {sessionLogs.length > 0 && (
             <div>
               <h2 className="text-2xl font-bold mb-4">Recent sessions</h2>
@@ -918,6 +879,7 @@ const handleCompleteWorkout = async () => {
             </div>
           )}
 
+          {/* Edit Modal */}
           {editingWorkoutId && (
             <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
               <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 max-w-md w-full">
@@ -962,66 +924,16 @@ const handleCompleteWorkout = async () => {
         </>
       )}
 
-      {mode === "selectExercises" && (
-        <div className="max-w-4xl mx-auto">
-          <div className="bg-slate-900 rounded-xl border border-slate-800 p-6 mb-6">
-            <h2 className="text-2xl font-bold mb-2">Select Exercises for {selectedWorkout?.name}</h2>
-            <p className="text-slate-400 text-sm mb-4">Choose exercises to add to your workout</p>
-
-            {selectedExerciseIds.length > 0 && (
-              <div className="mb-4 p-4 bg-emerald-900/20 border border-emerald-500/50 rounded-lg">
-                <p className="text-sm text-emerald-400 mb-2">{selectedExerciseIds.length} exercise(s) selected</p>
-                <div className="flex flex-wrap gap-2">
-                  {selectedExerciseIds.map(id => {
-                    const ex = ALL_EXERCISES.find(e => e.id === id);
-                    return ex ? (
-                      <span key={id} className="px-3 py-1 bg-emerald-500 text-black rounded-full text-xs font-medium">
-                        {ex.name}
-                      </span>
-                    ) : null;
-                  })}
-                </div>
-              </div>
-            )}
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowExerciseSearchModal(true)}
-                className="flex-1 py-3 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-black font-medium transition-all"
-              >
-                + Add Exercises
-              </button>
-              {selectedExerciseIds.length > 0 && (
-                <button
-                  onClick={handleConfirmExerciseSelection}
-                  className="flex-1 py-3 rounded-lg bg-blue-500 hover:bg-blue-600 text-white font-medium transition-all"
-                >
-                  Start Workout →
-                </button>
-              )}
-              <button
-                onClick={() => {
-                  setMode("overview");
-                  setSelectedWorkoutId(null);
-                  setSelectedExerciseIds([]);
-                }}
-                className="px-6 py-3 rounded-lg border border-slate-700 hover:bg-slate-800 text-slate-300 transition-all"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
+      {/* --- ACTIVE WORKOUT MODE --- */}
       {mode === "active" && selectedWorkout && (
         <>
+          {/* Active Header */}
           <div className="bg-slate-900 rounded-xl border border-slate-800 p-4 mb-6">
             <div className="flex justify-between items-center mb-2">
               <div>
                 <h1 className="text-2xl font-bold">{selectedWorkout.name}</h1>
                 <p className="text-sm text-slate-400">
-                  Exercise {currentExerciseIndex + 1} of {selectedWorkout.exercises.length}
+                  {workoutExercises.length} exercises · {Object.keys(workoutExercisesData).length} completed
                 </p>
               </div>
               <div className="text-right">
@@ -1051,17 +963,6 @@ const handleCompleteWorkout = async () => {
                 />
                 Deload
               </label>
-              <button
-                onClick={() => {
-                  setMode("overview");
-                  setSelectedWorkoutId(null);
-                  setWorkoutStartTime(null);
-                  setWorkoutElapsedSeconds(0);
-                }}
-                className="ml-auto px-4 py-1 rounded-lg border border-red-900 text-red-400 hover:bg-red-900/20 transition-all"
-              >
-                Exit
-              </button>
             </div>
 
             {sessionPRs.length > 0 && (
@@ -1078,180 +979,187 @@ const handleCompleteWorkout = async () => {
             )}
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-1 space-y-4">
-              <div className="bg-slate-900 rounded-xl border border-slate-800 p-4">
-                <h3 className="font-bold text-sm mb-3">Workout Plan</h3>
-                <div className="space-y-2">
-                  {selectedWorkout.exercises.map((ex, index) => (
-                    <div
-                      key={ex.id}
-                      draggable
-                      onDragStart={() => setDraggedIndex(index)}
-                      onDragOver={(e) => { e.preventDefault(); setDragOverIndex(index); }}
-                      onDrop={() => {
-                        if (draggedIndex !== null) handleMoveExercise(selectedWorkout.id, draggedIndex, index);
-                        setDraggedIndex(null);
-                      }}
-                      onClick={() => setCurrentExerciseIndex(index)}
-                      className={`p-3 rounded-lg border cursor-pointer transition-all flex justify-between items-center group ${
-                        index === currentExerciseIndex
-                          ? "bg-emerald-900/20 border-emerald-500/50"
-                          : "bg-slate-900 border-slate-800 hover:border-slate-700"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-mono text-slate-500">
-                          {index < currentExerciseIndex ? "✓" : index + 1}
-                        </span>
-                        <span className="text-sm">{ex.name}</span>
-                      </div>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleRemoveExerciseFromWorkout(selectedWorkout.id, ex.id);
-                        }}
-                        className="text-slate-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity px-2"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
+          {/* 🆕 NEU: Exercise List View (wenn keine Übung ausgewählt) */}
+          {!selectedExerciseId && (
+            <div className="max-w-4xl mx-auto">
+              <div className="bg-slate-900 rounded-xl border border-slate-800 p-6 mb-6">
+                <h2 className="text-xl font-bold mb-4">Exercises</h2>
 
-              <div className="bg-slate-900 rounded-xl border border-slate-800 p-4">
-                <h3 className="font-bold text-sm mb-3">Add Exercise</h3>
-
-                <div className="flex flex-wrap gap-1 mb-3">
-                  {["all", ...MUSCLE_GROUPS].map(g => (
-                    <button
-                      key={g}
-                      onClick={() => setExerciseFilter(g as string)}
-                      className={`px-2 py-1 text-[10px] uppercase rounded-md border ${
-                        exerciseFilter === g
-                          ? "bg-emerald-500 text-black border-emerald-500"
-                          : "bg-slate-900 border-slate-800 text-slate-400"
-                      }`}
-                    >
-                      {g}
-                    </button>
-                  ))}
-                </div>
-
-                <input
-                  type="text"
-                  placeholder="Search exercises..."
-                  value={exerciseSearch}
-                  onChange={(e) => setExerciseSearch(e.target.value)}
-                  className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-emerald-500 mb-3"
-                />
-
-                <div className="space-y-1 max-h-64 overflow-y-auto">
-                  {filteredExercises.slice(0, 20).map(ex => (
-                    <ExerciseItem
-                      key={ex.id}
-                      id={ex.id}
-                      name={ex.name}
-                      muscleGroup={ex.muscleGroup}
-                      imageUrl={ex.imageUrl}
-                      onAdd={(id: string) => handleAddExerciseToWorkout(selectedWorkout.id, id)}
-                      onInfoClick={() => setSelectedExerciseDetail(ex)}
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div className="lg:col-span-2">
-              {selectedWorkout.exercises[currentExerciseIndex] && (
-                <>
-                  <ActiveWorkoutCard
-                    exerciseId={selectedWorkout.exercises[currentExerciseIndex].id}
-                    exerciseName={selectedWorkout.exercises[currentExerciseIndex].name}
-                    muscleGroup={selectedWorkout.exercises[currentExerciseIndex].muscleGroup}
-                    sets={activeSets}
-                    note={selectedWorkout.exercises[currentExerciseIndex].note}
-                    isDeload={isDeload}
-                    onSetChange={(index: number, field: string, value: any) => {
-                      setActiveSets(prev => {
-                        const updated = prev.map((s, i) => 
-                          i === index ? { ...s, [field]: field === "completed" ? Boolean(value) : value } : s
-                        );
-
-                        if (field === "completed" && value && autoStartRest) {
-                          setShowRestTimer(true);
-                        }
-
-                        const vol = updated.reduce((sum, s) => 
-                          (s.weight && s.reps && s.completed) ? sum + (s.weight * s.reps) : sum, 0
-                        );
-                        const setsDone = updated.filter(s => s.completed).length;
-
-                        setTotalVolume(vol);
-                        setTotalSetsCompleted(setsDone);
-
-                        return updated;
-                      });
-                    }}
-                    onAddSet={() => setActiveSets(prev => [
-                      ...prev,
-                      { setNumber: prev.length + 1, weight: null, reps: null, rpe: null, completed: false }
-                    ])}
-                    onStartRest={(s: number) => {
-                      setCustomRestSeconds(s);
-                      setShowRestTimer(true);
-                    }}
-                    onNoteChange={(note: string) => {
-                      setWorkouts(prev => prev.map(w => 
-                        w.id === selectedWorkout.id ? {
-                          ...w,
-                          exercises: w.exercises.map((ex, i) => 
-                            i === currentExerciseIndex ? { ...ex, note } : ex
-                          )
-                        } : w
-                      ));
-                    }}
-                  />
-
-                  <div className="mt-4 grid grid-cols-2 gap-4">
-                    {currentExerciseIndex > 0 && (
-                      <button
-                        onClick={() => setCurrentExerciseIndex(prev => prev - 1)}
-                        className="py-3 rounded-xl border border-slate-700 text-slate-300 hover:bg-slate-800"
-                      >
-                        ← Previous
-                      </button>
-                    )}
-                    <button
-                      onClick={handleNextExercise}
-                      className={`py-3 rounded-xl font-medium transition-all ${
-                        currentExerciseIndex < selectedWorkout.exercises.length - 1
-                          ? "bg-emerald-500 hover:bg-emerald-600 text-black"
-                          : "bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-black"
-                      } ${currentExerciseIndex === 0 ? "col-span-2" : ""}`}
-                    >
-                      {currentExerciseIndex < selectedWorkout.exercises.length - 1 ? "Next Exercise →" : "Finish Workout 🎉"}
-                    </button>
+                {workoutExercises.length === 0 ? (
+                  <div className="text-center py-12">
+                    <p className="text-slate-400 mb-4">No exercises yet. Add some to get started!</p>
                   </div>
-                </>
-              )}
+                ) : (
+                  <div className="space-y-2 mb-6">
+                    {workoutExercises.map((ex, index) => {
+                      const data = workoutExercisesData[ex.id];
+                      const isCompleted = data && data.sets.some(s => s.completed);
 
-              <div className="mt-6 bg-slate-900 rounded-xl border border-slate-800 p-4">
+                      return (
+                        <div
+                          key={ex.id}
+                          draggable
+                          onDragStart={() => setDraggedExerciseIndex(index)}
+                          onDragOver={(e) => e.preventDefault()}
+                          onDrop={() => {
+                            if (draggedExerciseIndex !== null) handleMoveExercise(draggedExerciseIndex, index);
+                            setDraggedExerciseIndex(null);
+                          }}
+                          className="group p-4 rounded-lg border border-slate-800 bg-slate-950 hover:border-emerald-500/50 transition-all cursor-pointer"
+                          onClick={() => handleSelectExercise(ex.id)}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3 flex-1">
+                              <span className="text-xs font-mono text-slate-500">{index + 1}</span>
+
+                              {ex.imageUrl && (
+                                <img
+                                  src={ex.imageUrl}
+                                  alt={ex.name}
+                                  className="w-12 h-12 rounded object-cover"
+                                />
+                              )}
+
+                              <div className="flex-1">
+                                <h3 className="font-bold text-white group-hover:text-emerald-400 transition-colors">
+                                  {ex.name}
+                                </h3>
+                                <p className="text-xs text-slate-500 uppercase">{ex.muscleGroup}</p>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-4">
+                              {isCompleted && (
+                                <div className="text-right">
+                                  <div className="text-emerald-400 font-bold">{data.volume.toLocaleString()} kg</div>
+                                  <div className="text-xs text-slate-400">{data.sets.filter(s => s.completed).length} sets</div>
+                                </div>
+                              )}
+
+                              {isCompleted ? (
+                                <span className="text-emerald-400 text-xl">✓</span>
+                              ) : (
+                                <span className="text-slate-600 text-xl">→</span>
+                              )}
+
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRemoveExercise(ex.id);
+                                }}
+                                className="text-slate-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity px-2"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Add Exercise Button */}
+                <button
+                  onClick={() => {
+                    setSelectedExerciseIds([]);
+                    setShowExerciseSearchModal(true);
+                  }}
+                  className="w-full py-4 rounded-lg border-2 border-dashed border-slate-700 hover:border-emerald-500 text-slate-400 hover:text-emerald-400 font-medium transition-all"
+                >
+                  + Add Exercise
+                </button>
+              </div>
+
+              {/* Session Notes & Complete */}
+              <div className="bg-slate-900 rounded-xl border border-slate-800 p-6 mb-6">
                 <h3 className="font-bold text-sm mb-2">Session Notes</h3>
                 <textarea
                   value={sessionNotes}
                   onChange={(e) => setSessionNotes(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-sm focus:border-emerald-500 outline-none"
+                  className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-sm focus:border-emerald-500 outline-none mb-4"
                   placeholder="Wie war das Training insgesamt?"
                   rows={3}
                 />
+
+                <button
+                  onClick={handleCompleteWorkout}
+                  disabled={Object.keys(workoutExercisesData).length === 0}
+                  className="w-full py-4 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-black font-bold text-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Finish Workout 🎉
+                </button>
               </div>
             </div>
-          </div>
+          )}
+
+          {/* 🆕 NEU: Exercise Detail View (wenn Übung ausgewählt) */}
+          {selectedExerciseId && selectedExercise && (
+            <div className="max-w-4xl mx-auto">
+              <button
+                onClick={handleSaveExercise}
+                className="mb-4 text-emerald-400 hover:text-emerald-300 flex items-center gap-2"
+              >
+                ← Back to Exercise List
+              </button>
+
+              <ActiveWorkoutCard
+                exerciseId={selectedExercise.id}
+                exerciseName={selectedExercise.name}
+                muscleGroup={selectedExercise.muscleGroup}
+                sets={activeSets}
+                note={selectedExercise.note}
+                isDeload={isDeload}
+                onSetChange={(index: number, field: string, value: any) => {
+                  setActiveSets(prev => {
+                    const updated = prev.map((s, i) => 
+                      i === index ? { ...s, [field]: field === "completed" ? Boolean(value) : value } : s
+                    );
+
+                    if (field === "completed" && value && autoStartRest) {
+                      setShowRestTimer(true);
+                    }
+
+                    const vol = updated.reduce((sum, s) => 
+                      (s.weight && s.reps && s.completed) ? sum + (s.weight * s.reps) : sum, 0
+                    );
+                    const setsDone = updated.filter(s => s.completed).length;
+
+                    setTotalVolume(vol);
+                    setTotalSetsCompleted(setsDone);
+
+                    return updated;
+                  });
+                }}
+                onAddSet={() => setActiveSets(prev => [
+                  ...prev,
+                  { setNumber: prev.length + 1, weight: null, reps: null, rpe: null, completed: false }
+                ])}
+                onStartRest={(s: number) => {
+                  setCustomRestSeconds(s);
+                  setShowRestTimer(true);
+                }}
+                onNoteChange={(note: string) => {
+                  setWorkoutExercises(prev => prev.map(ex => 
+                    ex.id === selectedExercise.id ? { ...ex, note } : ex
+                  ));
+                }}
+              />
+
+              <button
+                onClick={handleSaveExercise}
+                className="w-full mt-4 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-black font-medium transition-all"
+              >
+                Save & Continue
+              </button>
+            </div>
+          )}
         </>
       )}
 
+      {/* --- MODALS --- */}
+
+      {/* Summary Modal */}
       {showSummary && workoutDuration != null && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-8 max-w-md w-full text-center">
@@ -1289,11 +1197,7 @@ const handleCompleteWorkout = async () => {
             <button
               onClick={() => {
                 setShowSummary(false);
-                setMode("overview");
-                setSelectedWorkoutId(null);
-                setWorkoutStartTime(null);
-                setWorkoutElapsedSeconds(0);
-                setSessionPRs([]);
+                handleReturnToDashboard();
               }}
               className="w-full py-3 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-black font-medium"
             >
@@ -1303,6 +1207,7 @@ const handleCompleteWorkout = async () => {
         </div>
       )}
 
+      {/* Rest Timer Overlay */}
       {showRestTimer && (
         <RestTimer
           initialSeconds={customRestSeconds}
@@ -1310,14 +1215,23 @@ const handleCompleteWorkout = async () => {
         />
       )}
 
+      {/* Exercise Detail Modal */}
       <ExerciseDetailModal
         exercise={selectedExerciseDetail}
         onClose={() => setSelectedExerciseDetail(null)}
       />
 
+      {/* 🆕 NEU: Exercise Search Modal - Zeigt ALLE Übungen */}
       <ExerciseSearchModal
         isOpen={showExerciseSearchModal}
-        onClose={() => setShowExerciseSearchModal(false)}
+        onClose={() => {
+          if (selectedExerciseIds.length > 0 && confirm(`${selectedExerciseIds.length} Übung(en) hinzufügen?`)) {
+            handleAddExercisesToWorkout();
+          } else {
+            setShowExerciseSearchModal(false);
+            setSelectedExerciseIds([]);
+          }
+        }}
         onSelectExercise={(exerciseId: string) => {
           setSelectedExerciseIds(prev => 
             prev.includes(exerciseId)
@@ -1327,10 +1241,11 @@ const handleCompleteWorkout = async () => {
         }}
         allExercises={ALL_EXERCISES}
         muscleGroups={MUSCLE_GROUPS}
-        selectedExerciseIds={selectedExerciseIds}     // 🆕 HINZUFÜGEN
-        multiSelect={mode === "selectExercises"}       // 🆕 HINZUFÜGEN
+        selectedExerciseIds={selectedExerciseIds}
+        multiSelect={true}
       />
 
+      {/* Session Detail Modal */}
       <SessionDetailModal
         session={selectedSession}
         onClose={() => setSelectedSession(null)}
