@@ -72,7 +72,6 @@ type WorkoutSessionLog = {
   startedAt: string;
   endedAt: string;
   durationMinutes: number;
-  durationSeconds: number;
   totalVolume: number;
   totalSetsCompleted: number;
   isDeload: boolean;
@@ -259,9 +258,8 @@ function App() {
           startedAt: l.started_at,
           endedAt: l.ended_at,
           durationMinutes: l.duration_minutes,
-          durationSeconds: l.duration_seconds || 0,
           totalVolume: Number(l.total_volume),
-          totalSetsCompleted: l.total_sets_completed,
+          totalSetsCompleted: l.total_sets,
           isDeload: l.is_deload,
           notes: l.notes,
           exercises: l.exercises || []
@@ -301,8 +299,7 @@ function App() {
         description: workout.description,
         exercises: workout.exercises,
         exercise_count: workout.exercises.length,
-        estimated_duration: workout.estimatedDuration,
-        updated_at: new Date().toISOString()
+        estimated_duration: workout.estimatedDuration
       }).eq('id', workout.id);
 
       if (error) throw error;
@@ -487,7 +484,6 @@ function App() {
         startedAt: sessionStart,
         endedAt: end,
         durationMinutes,
-        durationSeconds,
         totalVolume: totalVol,
         totalSetsCompleted: totalSets,
         isDeload,
@@ -517,9 +513,8 @@ function App() {
           started_at: log.startedAt,
           ended_at: log.endedAt,
           duration_minutes: log.durationMinutes,
-          duration_seconds: log.durationSeconds,
           total_volume: log.totalVolume,
-          total_sets_completed: log.totalSetsCompleted,
+          total_sets: log.totalSetsCompleted,
           is_deload: log.isDeload,
           notes: log.notes,
           exercises: log.exercises
@@ -822,7 +817,7 @@ function App() {
              <div className="text-center text-red-500 py-4 bg-red-900/20 rounded-lg border border-red-800">{error}</div>
         )}
 
-        {mode === "overview" && (
+        {mode === "overview" && !isLoadingData && (
           <>
             <div className="grid gap-4 grid-cols-1 md:grid-cols-3">
               <StatsCard
@@ -1080,7 +1075,7 @@ function App() {
         )}
 
         {mode === "active" && selectedWorkout && (
-          <div className="space-y-6">
+          <div className="space-y-6 max-h-screen overflow-y-auto">
             <div className="flex items-center justify-between sticky top-0 bg-slate-950/80 backdrop-blur-sm py-4 z-10">
               <div>
                 <h1 className="text-2xl font-semibold">{selectedWorkout.name}</h1>
@@ -1091,280 +1086,319 @@ function App() {
               </div>
 
               <div className="flex items-center gap-3">
-                <label className="flex items-center gap-2 px-3 py-2 bg-slate-900/50 border border-slate-800 rounded-lg cursor-pointer">
+                <label className="flex items-center gap-2 px-3 py-2 bg-slate-900/50 border border-slate-800 rounded-lg backdrop-blur-sm hover:bg-slate-900/70 transition-all cursor-pointer">
                   <input
                     type="checkbox"
                     checked={autoStartRest}
                     onChange={(e) => setAutoStartRest(e.target.checked)}
-                    className="w-5 h-5 rounded"
+                    className="w-5 h-5 rounded text-blue-500 bg-slate-800 border-slate-700"
                   />
-                  <span className="text-sm font-medium">Auto Rest</span>
+                  <span className="text-sm font-medium text-slate-300 whitespace-nowrap">Auto Rest</span>
                 </label>
 
-                <label className="flex items-center gap-2 px-3 py-2 bg-slate-900/50 border border-slate-800 rounded-lg cursor-pointer">
+                <label className="flex items-center gap-2 px-3 py-2 bg-slate-900/50 border border-slate-800 rounded-lg backdrop-blur-sm hover:bg-slate-900/70 transition-all cursor-pointer">
                   <input
                     type="checkbox"
                     checked={isDeload}
                     onChange={(e) => setIsDeload(e.target.checked)}
-                    className="w-5 h-5 rounded"
+                    className="w-5 h-5 rounded text-amber-500 bg-slate-800 border-slate-700"
                   />
-                  <span className="text-sm font-medium">Deload</span>
+                  <span className="text-sm font-medium text-slate-300 whitespace-nowrap">Deload</span>
                 </label>
 
                 <button
                   onClick={handleBackToOverview}
-                  className="rounded-md border border-slate-700 bg-slate-950 px-4 py-2 text-sm font-medium hover:bg-slate-800"
+                  className="rounded-md border border-slate-700 bg-slate-950 px-4 py-2 text-sm font-medium hover:bg-slate-800 transition-all"
                 >
-                  ← Back
+                  Back
                 </button>
               </div>
             </div>
 
-            <div className="space-y-2">
-              <h3 className="text-sm text-slate-400">
-                Exercises <span className="text-[10px] text-slate-500">(Drag zum Verschieben)</span>
-              </h3>
-              <div className="max-h-64 overflow-y-auto space-y-2">
-                {selectedWorkout.exercises.map((ex, index) => (
-                  <div
-                    key={ex.id}
-                    draggable
-                    onDragStart={() => handleDragStart(index)}
-                    onDragOver={(e) => handleDragOver(e, index)}
-                    onDrop={() => handleDrop(index)}
-                    onDragEnd={handleDragEnd}
-                    className={`p-3 rounded-lg border transition-all cursor-grab ${
-                      draggedIndex === index ? "opacity-50" : ""
-                    } ${
-                      index === currentExerciseIndex
-                        ? "border-emerald-500 bg-emerald-950/50"
-                        : "border-slate-800 bg-slate-900"
-                    }`}
-                  >
-                    <div className="flex justify-between items-center">
-                      <div className="flex-1" onClick={() => setCurrentExerciseIndex(index)}>
-                        <span className="font-medium">{ex.name}</span>
-                        <span className="text-xs text-slate-400 ml-2 px-2 py-1 bg-slate-800 rounded-full">
-                          {ex.muscleGroup}
-                        </span>
+            {/* Exercise List */}
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <h3 className="text-sm text-slate-400 flex items-center gap-2">
+                  Exercises <span className="text-[10px] text-slate-500">(Drag zum Verschieben)</span>
+                </h3>
+                <div className="max-h-64 overflow-y-auto space-y-2">
+                  {selectedWorkout.exercises.map((ex, index) => (
+                    <div
+                      key={ex.id}
+                      draggable
+                      onDragStart={() => handleDragStart(index)}
+                      onDragOver={(e) => handleDragOver(e, index)}
+                      onDrop={() => handleDrop(index)}
+                      onDragEnd={handleDragEnd}
+                      className={`p-3 rounded-lg border transition-all cursor-grab active:cursor-grabbing ${
+                        draggedIndex === index ? "opacity-50 scale-95 shadow-2xl" : ""
+                      } ${
+                        dragOverIndex === index && draggedIndex !== index ? "border-emerald-400 bg-emerald-950/30 scale-105" : ""
+                      } ${
+                        index === currentExerciseIndex
+                          ? "border-emerald-500 bg-emerald-950/50 shadow-lg"
+                          : "border-slate-800 bg-slate-900 hover:bg-slate-800"
+                      }`}
+                    >
+                      <div className="flex justify-between items-start gap-2">
+                        <div className="flex-1 cursor-pointer select-none" onClick={() => setCurrentExerciseIndex(index)}>
+                          <div className="flex justify-between items-center">
+                            <div className="flex items-center gap-2">
+                              <span className="text-slate-500">●</span>
+                              <span className="font-medium">{ex.name}</span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-slate-400 px-2 py-1 bg-slate-800 rounded-full">
+                              {ex.muscleGroup}
+                            </span>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleExerciseClick(ex.id);
+                              }}
+                              className="text-xs text-blue-400 hover:text-blue-300 px-2 py-1 bg-blue-500/10 rounded"
+                            >
+                              ℹ️
+                            </button>
+                          </div>
+                        </div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRemoveExerciseFromWorkout(selectedWorkout.id, ex.id);
+                          }}
+                          className="text-xs text-red-400 hover:text-red-300 p-1 hover:bg-red-500/10 rounded"
+                        >
+                          ✕
+                        </button>
                       </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Add exercises */}
+              <div className="space-y-2">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                  <div className="flex flex-wrap gap-1">
+                    {["all", ...MUSCLE_GROUPS].map((group) => (
                       <button
-                        onClick={() => handleRemoveExerciseFromWorkout(selectedWorkout.id, ex.id)}
-                        className="text-red-400 hover:text-red-300"
+                        key={group}
+                        onClick={() => setExerciseFilter(group === "all" ? "all" : (group as MuscleGroup))}
+                        className={`px-2 py-1 text-[10px] rounded-full border ${
+                          exerciseFilter === group
+                            ? "border-emerald-500 bg-emerald-900 text-emerald-100"
+                            : "border-slate-700 bg-slate-900 text-slate-300"
+                        }`}
                       >
-                        ✕
+                        {group}
                       </button>
-                    </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </div>
 
-            <div className="space-y-2">
-              <div className="flex gap-1 flex-wrap">
-                {["all", ...MUSCLE_GROUPS].map((group) => (
-                  <button
-                    key={group}
-                    onClick={() => setExerciseFilter(group === "all" ? "all" : (group as MuscleGroup))}
-                    className={`px-2 py-1 text-[10px] rounded-full border ${
-                      exerciseFilter === group
-                        ? "border-emerald-500 bg-emerald-900"
-                        : "border-slate-700 bg-slate-900"
-                    }`}
-                  >
-                    {group}
-                  </button>
-                ))}
-              </div>
-
-              <input
-                type="text"
-                value={exerciseSearch}
-                onChange={(e) => setExerciseSearch(e.target.value)}
-                placeholder="Search exercises..."
-                className="w-full rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-xs"
-              />
-
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-48 overflow-y-auto">
-                {filteredExercises.map((ex) => (
-                  <ExerciseItem
-                    key={ex.id}
-                    id={ex.id}
-                    name={ex.name}
-                    muscleGroup={ex.muscleGroup}
-                    imageUrl={ex.imageUrl}
-                    onClick={(exerciseId) => handleAddExerciseToWorkout(selectedWorkout.id, exerciseId)}
-                    onInfoClick={handleExerciseClick}
+                  <input
+                    type="text"
+                    value={exerciseSearch}
+                    onChange={(e) => setExerciseSearch(e.target.value)}
+                    placeholder="Search exercises..."
+                    className="w-full md:w-56 rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-xs outline-none focus:border-emerald-500"
                   />
-                ))}
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-48 overflow-y-auto">
+                  {filteredExercises.map((ex) => (
+                    <ExerciseItem
+                      key={ex.id}
+                      id={ex.id}
+                      name={ex.name}
+                      muscleGroup={ex.muscleGroup}
+                      imageUrl={ex.imageUrl}
+                      onClick={(exerciseId) =>
+                        handleAddExerciseToWorkout(selectedWorkout.id, exerciseId)
+                      }
+                      onInfoClick={handleExerciseClick}
+                    />
+                  ))}
+                </div>
               </div>
-            </div>
 
-            {selectedWorkout.exercises[currentExerciseIndex] && (
-              <>
-                {selectedWorkout.exercises[currentExerciseIndex].imageUrl && (
-                  <img
-                    src={selectedWorkout.exercises[currentExerciseIndex].imageUrl}
-                    alt={selectedWorkout.exercises[currentExerciseIndex].name}
-                    className="w-full max-h-64 object-cover rounded-lg border border-slate-800 cursor-pointer"
-                    onClick={() => handleExerciseClick(selectedWorkout.exercises[currentExerciseIndex].id)}
-                  />
-                )}
+              {/* Current exercise */}
+              {selectedWorkout.exercises[currentExerciseIndex] && (
+                <>
+                  {selectedWorkout.exercises[currentExerciseIndex].imageUrl && (
+                    <img
+                      src={selectedWorkout.exercises[currentExerciseIndex].imageUrl}
+                      alt={selectedWorkout.exercises[currentExerciseIndex].name}
+                      className="w-full max-h-64 object-cover rounded-lg border border-slate-800 cursor-pointer hover:border-blue-500 transition-all"
+                      onClick={() =>
+                        handleExerciseClick(
+                          selectedWorkout.exercises[currentExerciseIndex].id
+                        )
+                      }
+                    />
+                  )}
 
-                <ActiveWorkoutCard
-                  exerciseId={selectedWorkout.exercises[currentExerciseIndex].id}
-                  exerciseName={selectedWorkout.exercises[currentExerciseIndex].name}
-                  muscleGroup={selectedWorkout.exercises[currentExerciseIndex].muscleGroup}
-                  sets={activeSets}
-                  note={selectedWorkout.exercises[currentExerciseIndex].note}
-                  isDeload={isDeload}
-                  onSetChange={(index, field, value) => {
-                    setActiveSets((prev) => {
-                      const updated = prev.map((s, i) =>
-                        i === index
-                          ? { ...s, [field]: field === "completed" ? Boolean(value) : value }
-                          : s
+                  <ActiveWorkoutCard
+                    exerciseId={selectedWorkout.exercises[currentExerciseIndex].id}
+                    exerciseName={selectedWorkout.exercises[currentExerciseIndex].name}
+                    muscleGroup={
+                      selectedWorkout.exercises[currentExerciseIndex].muscleGroup
+                    }
+                    sets={activeSets}
+                    note={selectedWorkout.exercises[currentExerciseIndex].note}
+                    isDeload={isDeload}
+                    onSetChange={(index, field, value) => {
+                      setActiveSets((prev) => {
+                        const updated = prev.map((s, i) =>
+                          i === index
+                            ? { ...s, [field]: field === "completed" ? Boolean(value) : (value as number | null) }
+                            : s
+                        );
+
+                        if (field === "completed" && value && autoStartRest) {
+                          setShowRestTimer(true);
+                        }
+
+                        let volume = 0;
+                        let setsDone = 0;
+                        for (const set of updated) {
+                          if (set.weight != null && set.reps != null) {
+                            volume += set.weight * set.reps;
+                          }
+                          if (set.completed) {
+                            setsDone += 1;
+                          }
+                        }
+                        setTotalVolume(volume);
+                        setTotalSetsCompleted(setsDone);
+
+                        return updated;
+                      });
+                    }}
+                    onAddSet={() =>
+                      setActiveSets((prev) => [
+                        ...prev,
+                        {
+                          setNumber: prev.length + 1,
+                          weight: null,
+                          reps: null,
+                          rpe: null,
+                          completed: false,
+                        },
+                      ])
+                    }
+                    onStartRest={(seconds) => {
+                      setCustomRestSeconds(seconds);
+                      setShowRestTimer(true);
+                    }}
+                    onNoteChange={(note) => {
+                      setWorkouts((prev) =>
+                        prev.map((w) =>
+                          w.id === selectedWorkout!.id
+                            ? {
+                                ...w,
+                                exercises: w.exercises.map((ex, i) =>
+                                  i === currentExerciseIndex ? { ...ex, note } : ex
+                                ),
+                              }
+                            : w
+                        )
                       );
+                    }}
+                  />
 
-                      if (field === "completed" && value && autoStartRest) {
-                        setShowRestTimer(true);
-                      }
-
-                      let volume = 0;
-                      let setsDone = 0;
-                      for (const set of updated) {
-                        if (set.weight != null && set.reps != null) {
-                          volume += set.weight * set.reps;
-                        }
-                        if (set.completed) {
-                          setsDone += 1;
-                        }
-                      }
-                      setTotalVolume(volume);
-                      setTotalSetsCompleted(setsDone);
-
-                      return updated;
-                    });
-                  }}
-                  onAddSet={() =>
-                    setActiveSets((prev) => [
-                      ...prev,
-                      {
-                        setNumber: prev.length + 1,
-                        weight: null,
-                        reps: null,
-                        rpe: null,
-                        completed: false,
-                      },
-                    ])
-                  }
-                  onStartRest={(seconds) => {
-                    setCustomRestSeconds(seconds);
-                    setShowRestTimer(true);
-                  }}
-                  onNoteChange={(note) => {
-                    setWorkouts((prev) =>
-                      prev.map((w) =>
-                        w.id === selectedWorkout!.id
-                          ? {
-                              ...w,
-                              exercises: w.exercises.map((ex, i) =>
-                                i === currentExerciseIndex ? { ...ex, note } : ex
-                              ),
-                            }
-                          : w
-                      )
-                    );
-                  }}
-                />
-
-                <div className="rounded-lg border border-slate-800 bg-slate-900/80 p-4 text-sm flex flex-wrap gap-4">
-                  <div>
-                    <div className="text-xs text-slate-400">Total volume</div>
-                    <div className="font-semibold text-emerald-400">
-                      {totalVolume.toLocaleString()} kg·reps
+                  {/* Stats Summary */}
+                  <div className="rounded-lg border border-slate-800 bg-slate-900/80 p-4 text-sm flex flex-wrap gap-4">
+                    <div>
+                      <div className="text-xs text-slate-400">Total volume</div>
+                      <div className="font-semibold text-emerald-400">
+                        {totalVolume.toLocaleString()} kg·reps
+                      </div>
                     </div>
+                    <div>
+                      <div className="text-xs text-slate-400">Sets completed</div>
+                      <div className="font-semibold">{totalSetsCompleted}</div>
+                    </div>
+                    {workoutStartTime && (
+                      <div>
+                        <div className="text-xs text-slate-400">Duration</div>
+                        <div className="font-semibold">
+                          {Math.floor((Date.now() - workoutStartTime) / 60000)}:
+                          {Math.floor(((Date.now() - workoutStartTime) / 1000) % 60)
+                            .toString()
+                            .padStart(2, "0")}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <div>
-                    <div className="text-xs text-slate-400">Sets completed</div>
-                    <div className="font-semibold">{totalSetsCompleted}</div>
+
+                  {/* Next Exercise Button */}
+                  <button
+                    onClick={handleNextExercise}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-all shadow-lg hover:shadow-blue-500/25"
+                  >
+                    {currentExerciseIndex < selectedWorkout.exercises.length - 1
+                      ? "Next Exercise →"
+                      : "Complete Workout ✅"}
+                  </button>
+                </>
+              )}
+
+              {/* Session Notes für gesamtes Workout */}
+              <div className="space-y-2">
+                <label className="text-xs text-slate-400 font-medium">
+                  📝 Session Notes (gesamtes Workout)
+                </label>
+                <textarea
+                  className="w-full bg-slate-900 border border-slate-700 rounded-md px-3 py-2 text-xs min-h-[60px] focus:border-blue-500 transition-all"
+                  placeholder="Wie war die Session insgesamt? Energie, Schlaf, Mood..."
+                  value={sessionNotes}
+                  onChange={(e) => setSessionNotes(e.target.value)}
+                />
+              </div>
+
+              {showSummary && workoutDuration != null && (
+                <div className="rounded-xl border-2 border-emerald-500/50 bg-gradient-to-br from-emerald-950/50 to-slate-900/70 p-6 space-y-3">
+                  <div className="text-xl font-bold text-emerald-400 flex items-center gap-2">
+                    🎉 Workout completed!
                   </div>
-                  {workoutStartTime && (
+                  <div className="grid grid-cols-3 gap-4 text-center">
                     <div>
                       <div className="text-xs text-slate-400">Duration</div>
-                      <div className="font-semibold">
-                        {Math.floor((Date.now() - workoutStartTime) / 60000)}:
-                        {Math.floor(((Date.now() - workoutStartTime) / 1000) % 60)
-                          .toString()
-                          .padStart(2, "0")}
+                      <div className="text-2xl font-black text-emerald-400">
+                        {Math.floor(workoutDuration / 60)}m {workoutDuration % 60}s
                       </div>
                     </div>
-                  )}
+                    <div>
+                      <div className="text-xs text-slate-400">Volume</div>
+                      <div className="text-2xl font-black text-emerald-400">
+                        {totalVolume.toLocaleString()}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-slate-400">Sets</div>
+                      <div className="text-2xl font-black text-emerald-400">
+                        {totalSetsCompleted}
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleBackToOverview}
+                    className="w-full rounded-md border border-emerald-500/50 bg-emerald-950/50 px-4 py-2 text-sm font-medium text-emerald-300 hover:bg-emerald-900/50"
+                  >
+                    ← Back to overview
+                  </button>
                 </div>
+              )}
 
-                <button
-                  onClick={handleNextExercise}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg"
-                >
-                  {currentExerciseIndex < selectedWorkout.exercises.length - 1
-                    ? "Next Exercise →"
-                    : "Complete Workout ✅"}
-                </button>
-              </>
-            )}
-
-            <div className="space-y-2">
-              <label className="text-xs text-slate-400 font-medium">
-                📝 Session Notes
-              </label>
-              <textarea
-                className="w-full bg-slate-900 border border-slate-700 rounded-md px-3 py-2 text-xs min-h-[60px]"
-                placeholder="Wie war die Session?"
-                value={sessionNotes}
-                onChange={(e) => setSessionNotes(e.target.value)}
-              />
+              {showRestTimer && (
+                <RestTimer
+                  initialSeconds={customRestSeconds}
+                  onDismiss={() => setShowRestTimer(false)}
+                />
+              )}
             </div>
-
-            {showSummary && workoutDuration != null && (
-              <div className="rounded-xl border-2 border-emerald-500/50 bg-emerald-950/50 p-6 space-y-3">
-                <div className="text-xl font-bold text-emerald-400">
-                  🎉 Workout completed!
-                </div>
-                <div className="grid grid-cols-3 gap-4 text-center">
-                  <div>
-                    <div className="text-xs text-slate-400">Duration</div>
-                    <div className="text-2xl font-black text-emerald-400">
-                      {Math.floor(workoutDuration / 60)}m {workoutDuration % 60}s
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-slate-400">Volume</div>
-                    <div className="text-2xl font-black text-emerald-400">
-                      {totalVolume.toLocaleString()}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-slate-400">Sets</div>
-                    <div className="text-2xl font-black text-emerald-400">
-                      {totalSetsCompleted}
-                    </div>
-                  </div>
-                </div>
-                <button
-                  onClick={handleBackToOverview}
-                  className="w-full rounded-md bg-emerald-900/50 px-4 py-2 text-sm font-medium"
-                >
-                  ← Back to overview
-                </button>
-              </div>
-            )}
-
-            {showRestTimer && (
-              <RestTimer
-                initialSeconds={customRestSeconds}
-                onDismiss={() => setShowRestTimer(false)}
-              />
-            )}
           </div>
         )}
       </div>
