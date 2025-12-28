@@ -805,82 +805,7 @@ function App() {
               </div>
             </div>
 
-            {/* Create Workout Form */}
-            <div className="max-w-4xl mx-auto bg-slate-900 rounded-xl border border-slate-800 p-6 mb-8">
-              <h2 className="text-xl font-bold mb-4">Create New Workout</h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                <div>
-                  <label className="block text-xs text-slate-400 mb-2">Name</label>
-                  <input
-                    type="text"
-                    value={newName}
-                    onChange={(e) => setNewName(e.target.value)}
-                    placeholder="e.g. Push Day"
-                    className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-emerald-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-slate-400 mb-2">Description</label>
-                  <input
-                    type="text"
-                    value={newDescription}
-                    onChange={(e) => setNewDescription(e.target.value)}
-                    placeholder="Chest, shoulders, triceps..."
-                    className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-emerald-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-slate-400 mb-2">Est. duration (min)</label>
-                  <input
-                    type="number"
-                    value={newDuration}
-                    onChange={(e) => setNewDuration(e.target.value)}
-                    placeholder="60"
-                    className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-emerald-500"
-                  />
-                </div>
-              </div>
-              <button
-                onClick={handleCreateWorkout}
-                className="w-full py-3 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-black font-medium transition-all"
-              >
-                Create Workout
-              </button>
-            </div>
-
-            {/* Workout List */}
-            <div className="max-w-4xl mx-auto mb-8">
-              <h2 className="text-2xl font-bold mb-4">Your workouts</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {workouts.map((w, index) => (
-                  <div
-                    key={w.id}
-                    draggable
-                    onDragStart={() => setDraggedWorkoutIndex(index)}
-                    onDragOver={(e) => { e.preventDefault(); }}
-                    onDrop={() => {
-                      if (draggedWorkoutIndex !== null) handleMoveWorkout(draggedWorkoutIndex, index);
-                      setDraggedWorkoutIndex(null);
-                    }}
-                    className={`rounded-xl border transition-all cursor-move ${
-                      index === 0 ? "border-emerald-500/50 bg-emerald-950/10" : "border-slate-800 bg-slate-900 hover:border-slate-700"
-                    }`}
-                  >
-                    <WorkoutCard
-                      id={w.id}
-                      name={w.name}
-                      description={w.description}
-                      exercises={w.exerciseCount}
-                      estimatedDuration={w.estimatedDuration}
-                      lastPerformed={w.lastPerformed}
-                      onStart={handleStartWorkout}
-                      onEdit={handleEditWorkout}
-                      onDelete={handleDeleteWorkout}
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
+            
 
             {/* Recent Sessions */}
             {sessionLogs.length > 0 && (
@@ -959,13 +884,94 @@ function App() {
           </>
         )}
 
-        {/* EXERCISES PAGE */}
-        {currentPage === 'exercises' && (
-          <ExerciseBrowser
-            exercises={ALL_EXERCISES}
-            onSelectExercise={(ex) => setSelectedExerciseForDetail(ex)}
+        {/* WORKOUTS PAGE */}
+{currentPage === 'exercises' && mode === "overview" && (
+  <>
+    {/* Header */}
+    <div className="max-w-4xl mx-auto mb-8">
+      <h1 className="text-4xl font-bold mb-2">Your Workouts</h1>
+      <p className="text-slate-400 text-sm">Create and manage your training routines</p>
+    </div>
+
+    {/* Create Workout Form */}
+    <div className="max-w-4xl mx-auto bg-slate-900 rounded-xl border border-slate-800 p-6 mb-8">
+      <h2 className="text-xl font-bold mb-4">Create New Workout</h2>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+        <div>
+          <label className="block text-xs text-slate-400 mb-2">Name</label>
+          <input
+            type="text"
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            placeholder="e.g. Push Day"
+            className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-emerald-500"
           />
-        )}
+        </div>
+        <div>
+          <label className="block text-xs text-slate-400 mb-2">Description</label>
+          <input
+            type="text"
+            value={newDescription}
+            onChange={(e) => setNewDescription(e.target.value)}
+            placeholder="Chest, shoulders, triceps..."
+            className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-emerald-500"
+          />
+        </div>
+        <div>
+          <label className="block text-xs text-slate-400 mb-2">Est. duration (min)</label>
+          <input
+            type="number"
+            value={newDuration}
+            onChange={(e) => setNewDuration(e.target.value)}
+            placeholder="60"
+            className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-emerald-500"
+          />
+        </div>
+      </div>
+      <button
+        onClick={handleCreateWorkout}
+        className="w-full py-3 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-black font-medium transition-all"
+      >
+        Create Workout
+      </button>
+    </div>
+
+    {/* Workout List */}
+    <div className="max-w-4xl mx-auto mb-8">
+      <h2 className="text-2xl font-bold mb-4">All Workouts</h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {workouts.map((w, index) => (
+          <div
+            key={w.id}
+            draggable
+            onDragStart={() => setDraggedWorkoutIndex(index)}
+            onDragOver={(e) => { e.preventDefault(); }}
+            onDrop={() => {
+              if (draggedWorkoutIndex !== null) handleMoveWorkout(draggedWorkoutIndex, index);
+              setDraggedWorkoutIndex(null);
+            }}
+            className={`rounded-xl border transition-all cursor-move ${
+              index === 0 ? "border-emerald-500/50 bg-emerald-950/10" : "border-slate-800 bg-slate-900 hover:border-slate-700"
+            }`}
+          >
+            <WorkoutCard
+              id={w.id}
+              name={w.name}
+              description={w.description}
+              exercises={w.exerciseCount}
+              estimatedDuration={w.estimatedDuration}
+              lastPerformed={w.lastPerformed}
+              onStart={handleStartWorkout}
+              onEdit={handleEditWorkout}
+              onDelete={handleDeleteWorkout}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+
 
         {/* ACCOUNT PAGE */}
         {currentPage === 'account' && (
@@ -1235,7 +1241,15 @@ function App() {
         )}
       </div>
 
+      {/* Edit Modal (außerhalb aller Pages) */}
+      {editingWorkoutId && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          ... kompletter Modal-Code ...
+        </div>
+      )}
+
       {/* MODALS */}
+
 
       {/* Summary Modal */}
       {showSummary && workoutDuration != null && (
