@@ -7,14 +7,14 @@ type BottomNavProps = {
 
 export const BottomNav: React.FC<BottomNavProps> = ({ currentPage, onNavigate }) => {
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-800 z-50">
+    <nav className="fixed bottom-0 left-0 right-0 bg-black/0 border-t border-slate-800/20 backdrop-blur-sm z-50">
       <div className="max-w-4xl mx-auto px-4">
         <div className="flex justify-around items-center h-16">
           <button
             onClick={() => onNavigate("dashboard")}
             className={`flex flex-col items-center gap-1 px-6 py-2 rounded-lg transition-all ${
               currentPage === "dashboard"
-                ? "text-emerald-400 bg-emerald-500/10"
+                ? "text-emerald-400"
                 : "text-slate-400 hover:text-white"
             }`}
           >
@@ -45,7 +45,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentPage, onNavigate })
                 d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
               />
             </svg>
-            <span className="text-xs font-medium">Exercises</span>
+            <span className="text-xs font-medium">Workouts</span>
           </button>
 
           <button
