@@ -662,34 +662,40 @@ function App() {
 
     const estimatedDuration = newDuration ? parseInt(newDuration) : undefined;
 
-    const newWorkout: Workout = {
-      id: crypto.randomUUID(),
-      name: newName,
-      description: newDescription || undefined,
-      exerciseCount: 0,
-      estimatedDuration,
-      exercises: []
-    };
-
-    setWorkouts((prev) => [newWorkout, ...prev]);
-
     try {
-      await supabase.from('workouts').insert({
-        id: newWorkout.id,
+      const payload = {
         user_id: user.id,
-        name: newWorkout.name,
-        description: newWorkout.description,
-        estimated_duration: newWorkout.estimatedDuration,
+        name: newName,
+        description: newDescription || undefined,
+        estimated_duration: estimatedDuration,
         exercise_count: 0,
         exercises: []
-      });
-    } catch (err) {
-      console.error("Error creating workout:", err);
-    }
+      } as any;
 
-    setNewName("");
-    setNewDescription("");
-    setNewDuration("");
+      const { data, error } = await supabase.from('workouts').insert(payload).select().single();
+      if (error || !data) throw error || new Error('No data returned from DB');
+
+      const created: Workout = {
+        id: data.id,
+        name: data.name,
+        description: data.description,
+        exerciseCount: data.exercise_count || 0,
+        estimatedDuration: data.estimated_duration,
+        lastPerformed: data.last_performed,
+        exercises: data.exercises || []
+      };
+
+      setWorkouts((prev) => [created, ...prev]);
+
+      // Clear inputs on success
+      setNewName("");
+      setNewDescription("");
+      setNewDuration("");
+
+    } catch (err: any) {
+      console.error("Error creating workout:", err);
+      setError('Fehler beim Erstellen des Trainings: ' + (err?.message || 'Unbekannter Fehler'));
+    }
   };
 
   const handleEditWorkout = (id: string) => {
