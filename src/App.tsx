@@ -4,7 +4,6 @@ import { Auth } from './components/Auth';
 import type { User } from '@supabase/supabase-js';
 
 // Components
-import { StatsCard } from "./components/StatsCard";
 import { WorkoutCard } from "./components/WorkoutCard";
 import { ActiveWorkoutCard } from "./components/ActiveWorkoutCard";
 import { RestTimer } from "./components/RestTimer";
@@ -12,7 +11,6 @@ import { ExerciseDetailModal } from "./components/ExerciseDetailModal";
 import { ExerciseSearchModal } from "./components/ExerciseSearchModal";
 import { SessionDetailModal } from "./components/SessionDetailModal";
 import { BottomNav } from "./components/BottomNav";
-import { ExerciseBrowser } from "./components/ExerciseBrowser";
 import { AccountPage } from "./components/AccountPage";
 
 // Data
@@ -748,7 +746,6 @@ function App() {
   };
 
   const selectedWorkout = workouts.find((w) => w.id === selectedWorkoutId) || null;
-  const totalVolumeAllTime = sessionLogs.reduce((sum, log) => sum + log.totalVolume, 0);
   const selectedExercise = workoutExercises.find(ex => ex.id === selectedExerciseId);
 
   const formatTime = (seconds: number): string => {
