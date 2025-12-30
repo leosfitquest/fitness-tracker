@@ -1287,12 +1287,7 @@ function App() {
         )}
       </div>
 
-      {/* Edit Modal (außerhalb aller Pages) */}
-      {editingWorkoutId && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-          ... kompletter Modal-Code ...
-        </div>
-      )}
+
       {/* Workout Settings Modal */}
       {/* Workout Settings Modal */}
       {showWorkoutSettings && (
