@@ -203,6 +203,14 @@ function App() {
   const [workoutStarted, setWorkoutStarted] = useState(false);
   const [selectedExerciseForDetail, setSelectedExerciseForDetail] = useState<Exercise | null>(null);
 
+
+  // Workout Mini-Bar collapsed (zuklappen) 
+  const [workoutCollapsed, setWorkoutCollapsed] = useState(false);
+
+  const [showWorkoutSettings, setShowWorkoutSettings] = useState(false);
+
+
+
   // --- Effects ---
 
   // Auth Check
@@ -782,28 +790,64 @@ function App() {
 
       <div className="px-6 pt-6">
         {/* DASHBOARD PAGE */}
-        {currentPage === 'dashboard' && mode === "overview" && !isLoadingData && (
-          <>
-            <div className="max-w-4xl mx-auto mb-8">
-              <h1 className="text-4xl font-bold mb-6">Fitness Tracker</h1>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <StatsCard
-                  title="Total Workouts"
-                  value={sessionLogs.length.toString()}
-                  subtitle="completed"
-                />
-                <StatsCard
-                  title="Total Volume"
-                  value={`${(totalVolumeAllTime / 1000).toFixed(1)}k`}
-                  subtitle="kg lifted"
-                />
-                <StatsCard
-                  title="Personal Records"
-                  value={Object.keys(exerciseRecords).length.toString()}
-                  subtitle="exercises"
-                />
+        {/* MINI WORKOUT BAR - überall sichtbar wenn active */}
+        {currentPage === 'dashboard' && mode === "active" && selectedWorkout && (
+          <div className="fixed top-0 left-0 right-0 bg-gradient-to-r from-slate-900/95 to-black/95 border-b border-slate-800 z-40 backdrop-blur-sm px-6 py-3">
+            <div className="max-w-4xl mx-auto flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={() => setWorkoutCollapsed(!workoutCollapsed)}
+                  className="text-emerald-400 hover:text-emerald-300 p-2 rounded-lg hover:bg-slate-800/50"
+                >
+                  {workoutCollapsed ? "📋" : "📋"}
+                </button>
+                <div className="text-lg font-bold text-white truncate">{selectedWorkout.name}</div>
+              </div>
+              
+              <div className="flex items-center gap-3">
+                {!workoutStarted ? (
+                  <button
+                    onClick={() => {
+                      setWorkoutStarted(true);
+                      if (!workoutStartTime) setWorkoutStartTime(Date.now());
+                    }}
+                    className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-black font-bold rounded-lg text-sm"
+                  >
+                    START
+                  </button>
+                ) : (
+                  <div className="text-emerald-400 font-mono font-bold text-lg">
+                    {formatTime(workoutElapsedSeconds)}
+                  </div>
+                )}
+                
+                <button
+                  onClick={() => setShowWorkoutSettings(true)}
+                  className="p-2 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg"
+                  title="Settings"
+                >
+                  ⚙️
+                </button>
+                
+                <button
+                  onClick={handleCompleteWorkout}
+                  disabled={Object.keys(workoutExercisesData).length === 0}
+                  className="px-6 py-2 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-black font-bold rounded-lg text-sm shadow-lg disabled:opacity-50"
+                >
+                  ✓ Finish
+                </button>
+                
+                <button
+                  onClick={handleReturnToDashboard}
+                  className="p-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg"
+                  title="Discard"
+                >
+                  🗑️
+                </button>
               </div>
             </div>
+          </div>
+        )}
 
             
 
@@ -881,9 +925,6 @@ function App() {
                 </div>
               </div>
             )}
-          </>
-        )}
-
         {/* WORKOUTS PAGE */}
 {currentPage === 'exercises' && mode === "overview" && (
   <>
@@ -978,8 +1019,9 @@ function App() {
           <AccountPage user={user} />
         )}
 
-        {/* ACTIVE WORKOUT MODE */}
-        {mode === "active" && selectedWorkout && (
+        {/* ACTIVE WORKOUT MODE - NUR AUF DASHBOARD */}
+        {currentPage === 'dashboard' && mode === "active" && selectedWorkout && !workoutCollapsed && (
+
           <>
             {/* Active Header */}
             <div className="max-w-4xl mx-auto bg-slate-900 rounded-xl border border-slate-800 p-4 mb-6">
@@ -1092,12 +1134,16 @@ function App() {
                                   />
                                 )}
 
-                                <div className="flex-1">
-                                  <h3 className="font-bold text-white group-hover:text-emerald-400 transition-colors">
+                                <div className="flex-1 min-w-0">
+                                  <h3 className="font-bold text-white group-hover:text-emerald-400 transition-colors truncate">
                                     {ex.name}
                                   </h3>
                                   <p className="text-xs text-slate-500 uppercase">{ex.muscleGroup}</p>
+                                  {ex.instructions?.[0] && (
+                                    <p className="text-xs text-slate-400 mt-1 line-clamp-2">{ex.instructions[0]}</p>
+                                 )}
                                 </div>
+
                               </div>
 
                               <div className="flex items-center gap-4">
@@ -1115,9 +1161,9 @@ function App() {
                                 )}
 
                                 {isCompleted ? (
-                                  <span className="text-emerald-400 text-xl">✓</span>
+                                  <span className="text-emerald-400 text-xl font-bold">✓</span>
                                 ) : (
-                                  <span className="text-slate-600 text-xl">○</span>
+                                  <span className="text-slate-600 text-xl font-bold">✓</span>
                                 )}
 
                                 <button
@@ -1247,6 +1293,69 @@ function App() {
           ... kompletter Modal-Code ...
         </div>
       )}
+      {/* Workout Settings Modal */}
+      {/* Workout Settings Modal */}
+      {showWorkoutSettings && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 max-w-sm w-full max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold">Workout Settings</h2>
+              <button 
+                onClick={() => setShowWorkoutSettings(false)}
+                className="text-slate-400 hover:text-white text-xl p-1 rounded hover:bg-slate-800"
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <label className="flex items-center gap-3 p-3 bg-slate-800/50 rounded-lg cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={autoStartRest}
+                  onChange={(e) => setAutoStartRest(e.target.checked)}
+                  className="w-5 h-5 accent-blue-500 rounded"
+                />
+                <span className="text-sm">Auto Start Rest Timer</span>
+              </label>
+              
+              <label className="flex items-center gap-3 p-3 bg-slate-800/50 rounded-lg cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={isDeload}
+                  onChange={(e) => setIsDeload(e.target.checked)}
+                  className="w-5 h-5 accent-amber-500 rounded"
+                />
+                <span className="text-sm font-medium text-amber-400">Deload Week</span>
+              </label>
+              
+              <div>
+                <label className="block text-xs text-slate-400 mb-2">Default Rest Time</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    value={Math.round(customRestSeconds / 60)}
+                    onChange={(e) => setCustomRestSeconds(parseInt(e.target.value) * 60 || 90)}
+                    min="0.5"
+                    step="0.5"
+                    className="flex-1 rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm focus:border-emerald-500 outline-none"
+                  />
+                  <span className="text-slate-500 px-2">min</span>
+                </div>
+              </div>
+            </div>
+            
+            <button
+              onClick={() => setShowWorkoutSettings(false)}
+              className="w-full mt-6 py-3 rounded-lg bg-emerald-500/20 border border-emerald-500/50 hover:bg-emerald-500/30 text-emerald-400 font-medium transition-all"
+            >
+              Done
+            </button>
+          </div>
+        </div>
+      )}
+
+
 
       {/* MODALS */}
 
