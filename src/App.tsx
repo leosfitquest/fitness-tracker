@@ -849,7 +849,7 @@ function App() {
             
 
             {/* Recent Sessions */}
-            {sessionLogs.length > 0 && (
+            {currentPage === 'dashboard' && sessionLogs.length > 0 && (
               <div className="max-w-4xl mx-auto">
                 <h2 className="text-2xl font-bold mb-4">Recent sessions</h2>
                 <div className="space-y-2">
