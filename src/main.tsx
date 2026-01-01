@@ -1,6 +1,4 @@
 import React from "react";
-import { StatsCard } from "./components/StatsCard";
-import { ProgressChart } from "./components/ProgressChart";
 import ReactDOM from "react-dom/client";
 import App from "./App";
 import "./index.css";

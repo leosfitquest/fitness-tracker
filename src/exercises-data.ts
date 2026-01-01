@@ -1,14 +1,30 @@
-// Typ für einen Eintrag aus dem Datensatz
 export type RawExercise = {
   id: string;
   name: string;
-  primaryMuscles: string[];
   images: string[];
-  category: string;
-  // weitere Felder kannst du bei Bedarf ergänzen
+  primaryMuscles: string[];
+  secondaryMuscles?: string[];
+  instructions?: string[];
+  equipment?: string | null;
 };
 
-// JSON importieren (du hast es in src/exercises-data.json)
-import raw from "./exercises-data.json";
-
-export const RAW_EXERCISES = raw as RawExercise[];
+// Falls du noch keine Exercise-Daten hast, erstelle eine leere Liste:
+export const RAW_EXERCISES: RawExercise[] = [
+  {
+    id: "bench-press",
+    name: "Bench Press",
+    images: ["Barbell_Bench_Press/0.jpg"],
+    primaryMuscles: ["Chest"],
+    secondaryMuscles: ["Triceps", "Shoulders"],
+    equipment: "Barbell",
+  },
+  {
+    id: "squat",
+    name: "Squat",
+    images: ["Barbell_Squat/0.jpg"],
+    primaryMuscles: ["Quadriceps"],
+    secondaryMuscles: ["Glutes", "Hamstrings"],
+    equipment: "Barbell",
+  },
+  // Füge mehr hinzu oder lade von API
+];

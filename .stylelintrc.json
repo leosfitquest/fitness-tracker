@@ -1,0 +1,6 @@
+{
+  "ignoreFiles": ["src/index.css"],
+  "rules": {
+    "at-rule-no-unknown": null
+  }
+}

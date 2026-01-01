@@ -1,3 +1,11 @@
+/* stylelint-disable at-rule-no-unknown */
 @tailwind base;
+/* stylelint-enable at-rule-no-unknown */
+
+/* stylelint-disable at-rule-no-unknown */
 @tailwind components;
+/* stylelint-enable at-rule-no-unknown */
+
+/* stylelint-disable at-rule-no-unknown */
 @tailwind utilities;
+/* stylelint-enable at-rule-no-unknown */

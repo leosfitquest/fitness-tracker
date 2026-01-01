@@ -52,7 +52,7 @@ export const ExerciseBrowser: React.FC<ExerciseBrowserProps> = ({ exercises, onS
       </div>
 
       <div className="space-y-2">
-        {filteredExercises.slice(0, 50).map((ex) => (
+        {filteredExercises.map(ex => (
           <button
             key={ex.id}
             onClick={() => onSelectExercise(ex)}

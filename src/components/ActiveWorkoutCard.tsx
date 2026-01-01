@@ -21,6 +21,20 @@ interface ActiveWorkoutCardProps {
   isDeload?: boolean;
 }
 
+const getSetClasses = (set: ActiveSet, progressColor: 'emerald' | 'red' | 'gray') => {
+  if (set.completed) {
+    switch (progressColor) {
+      case 'emerald':
+        return 'border-emerald-500 bg-emerald-950/30';
+      case 'red':
+        return 'border-red-500 bg-red-950/30';
+      case 'gray':
+        return 'border-gray-500 bg-gray-950/30';
+    }
+  }
+  return 'border-slate-700 bg-slate-900/50 hover:bg-slate-800';
+}
+
 export function ActiveWorkoutCard({
   exerciseId,
   exerciseName,
@@ -35,7 +49,7 @@ export function ActiveWorkoutCard({
 }: ActiveWorkoutCardProps) {
   const [customRestSeconds, setCustomRestSeconds] = useState(90);
 
-  const getProgressColor = (setIndex: number) => {
+  const getProgressColor = (setIndex: number): 'emerald' | 'red' | 'gray' => {
     const currentSet = sets[setIndex];
 
     if (!currentSet.weight || !currentSet.reps) {
@@ -69,7 +83,7 @@ export function ActiveWorkoutCard({
   };
 
   return (
-    <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-6 space-y-4">
+    <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-6 space-y-4" data-exercise-id={exerciseId}>
       {/* Exercise Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -92,11 +106,7 @@ export function ActiveWorkoutCard({
           return (
             <div
               key={set.setNumber}
-              className={`p-4 rounded-lg border transition-all ${
-                set.completed 
-                  ? `border-${progressColor}-500 bg-${progressColor}-950/30` 
-                  : 'border-slate-700 bg-slate-900/50 hover:bg-slate-800'
-              }`}
+              className={`p-4 rounded-lg border transition-all ${getSetClasses(set, progressColor)}`}
             >
               <div className="flex items-center justify-between mb-3">
                 <span className="text-sm font-semibold text-slate-300">

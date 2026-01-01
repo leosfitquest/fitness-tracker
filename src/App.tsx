@@ -201,13 +201,12 @@ function App() {
   const [workoutStarted, setWorkoutStarted] = useState(false);
   const [selectedExerciseForDetail, setSelectedExerciseForDetail] = useState<Exercise | null>(null);
 
-
-  // Workout Mini-Bar collapsed (zuklappen) 
+  // Workout Mini-Bar collapsed
   const [workoutCollapsed, setWorkoutCollapsed] = useState(false);
-
   const [showWorkoutSettings, setShowWorkoutSettings] = useState(false);
 
-
+  // Discard Confirmation Modal
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
 
   // --- Effects ---
 
@@ -295,7 +294,7 @@ function App() {
     loadData();
   }, [user]);
 
-  // Live Timer with GO button
+  // Live Timer
   useEffect(() => {
     if (mode === "active" && workoutStartTime && workoutStarted) {
       const interval = setInterval(() => {
@@ -325,8 +324,8 @@ function App() {
     } else {
       localStorage.removeItem('activeWorkout');
     }
-  }, [mode, selectedWorkoutId, selectedExerciseId, workoutExercises, workoutExercisesData, 
-      activeSets, sessionStart, sessionNotes, isDeload, workoutStartTime, workoutStarted, sessionPRs]);
+  }, [mode, selectedWorkoutId, selectedExerciseId, workoutExercises, workoutExercisesData,
+    activeSets, sessionStart, sessionNotes, isDeload, workoutStartTime, workoutStarted, sessionPRs]);
 
   // Load workout state on mount
   useEffect(() => {
@@ -458,6 +457,11 @@ function App() {
     const workout = workouts.find(w => w.id === id);
     if (!workout) return;
 
+    if (!workout.exercises || workout.exercises.length === 0) {
+      alert("⚠️ Bitte füge zuerst Übungen zu diesem Workout hinzu!");
+      return;
+    }
+
     setSelectedWorkoutId(id);
     setSessionPRs([]);
 
@@ -484,13 +488,13 @@ function App() {
     setSessionStart(new Date().toISOString());
     setSessionNotes("");
     setWorkoutStartTime(Date.now());
-    setWorkoutStarted(false); // Timer nicht auto-starten
+    setWorkoutStarted(false);
     setWorkoutElapsedSeconds(0);
     setWorkoutDuration(null);
     setTotalVolume(0);
     setTotalSetsCompleted(0);
     setShowSummary(false);
-    setCurrentPage('dashboard'); // Zurück zu Dashboard Page
+    setCurrentPage('dashboard');
   };
 
   const handleAddExercisesToWorkout = () => {
@@ -569,6 +573,11 @@ function App() {
   const handleCompleteWorkout = async () => {
     if (!selectedWorkoutId || !sessionStart || !workoutStartTime || !user) return;
 
+    if (Object.keys(workoutExercisesData).length === 0) {
+      alert("⚠️ Bitte schließe mindestens eine Übung ab!");
+      return;
+    }
+
     const workout = workouts.find(w => w.id === selectedWorkoutId);
     if (!workout) return;
 
@@ -625,9 +634,11 @@ function App() {
         updated_at: new Date().toISOString()
       }).eq('id', workout.id);
 
-      setWorkouts(prev => prev.map(w => 
-        w.id === workout.id ? { ...w, lastPerformed: end, exercises: workoutExercises, exerciseCount: workoutExercises.length } : w
-      ));
+      setWorkouts(prev =>
+        prev.map(w =>
+          w.id === workout.id ? { ...w, lastPerformed: end, exercises: workoutExercises, exerciseCount: workoutExercises.length } : w
+        )
+      );
 
     } catch (err: any) {
       console.error("Error saving workout session:", err);
@@ -642,7 +653,8 @@ function App() {
 
   const handleReturnToDashboard = () => {
     if (mode === "active") {
-      if (!confirm("Workout beenden ohne zu speichern?")) return;
+      setShowDiscardConfirm(true);
+      return;
     }
 
     setMode("overview");
@@ -654,6 +666,20 @@ function App() {
     setWorkoutElapsedSeconds(0);
     setSessionPRs([]);
     setWorkoutStarted(false);
+    localStorage.removeItem('activeWorkout');
+  };
+
+  const handleConfirmDiscard = () => {
+    setMode("overview");
+    setSelectedWorkoutId(null);
+    setSelectedExerciseId(null);
+    setWorkoutExercises([]);
+    setWorkoutExercisesData({});
+    setWorkoutStartTime(null);
+    setWorkoutElapsedSeconds(0);
+    setSessionPRs([]);
+    setWorkoutStarted(false);
+    setShowDiscardConfirm(false);
     localStorage.removeItem('activeWorkout');
   };
 
@@ -687,7 +713,6 @@ function App() {
 
       setWorkouts((prev) => [created, ...prev]);
 
-      // Clear inputs on success
       setNewName("");
       setNewDescription("");
       setNewDuration("");
@@ -726,8 +751,6 @@ function App() {
   };
 
   const handleDeleteWorkout = async (id: string) => {
-    if (!confirm("Delete this workout?")) return;
-
     setWorkouts((prev) => prev.filter((w) => w.id !== id));
 
     if (user) {
@@ -792,9 +815,8 @@ function App() {
       )}
 
       <div className="px-6 pt-6">
-        {/* DASHBOARD PAGE */}
-        {/* MINI WORKOUT BAR - überall sichtbar wenn active */}
-        {currentPage === 'dashboard' && mode === "active" && selectedWorkout && (
+        {/* MINI WORKOUT BAR */}
+        {mode === "active" && selectedWorkout && (
           <div className="fixed top-0 left-0 right-0 bg-gradient-to-r from-slate-900/95 to-black/95 border-b border-slate-800 z-40 backdrop-blur-sm px-6 py-3">
             <div className="max-w-4xl mx-auto flex items-center justify-between">
               <div className="flex items-center gap-4">
@@ -802,11 +824,11 @@ function App() {
                   onClick={() => setWorkoutCollapsed(!workoutCollapsed)}
                   className="text-emerald-400 hover:text-emerald-300 p-2 rounded-lg hover:bg-slate-800/50"
                 >
-                  {workoutCollapsed ? "📋" : "📋"}
+                  {workoutCollapsed ? "▼" : "▲"}
                 </button>
                 <div className="text-lg font-bold text-white truncate">{selectedWorkout.name}</div>
               </div>
-              
+
               <div className="flex items-center gap-3">
                 {!workoutStarted ? (
                   <button
@@ -823,7 +845,7 @@ function App() {
                     {formatTime(workoutElapsedSeconds)}
                   </div>
                 )}
-                
+
                 <button
                   onClick={() => setShowWorkoutSettings(true)}
                   className="p-2 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg"
@@ -831,7 +853,7 @@ function App() {
                 >
                   ⚙️
                 </button>
-                
+
                 <button
                   onClick={handleCompleteWorkout}
                   disabled={Object.keys(workoutExercisesData).length === 0}
@@ -839,7 +861,7 @@ function App() {
                 >
                   ✓ Finish
                 </button>
-                
+
                 <button
                   onClick={handleReturnToDashboard}
                   className="p-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg"
@@ -852,11 +874,15 @@ function App() {
           </div>
         )}
 
-            
+        {/* DASHBOARD PAGE */}
+        {currentPage === 'dashboard' && mode === "overview" && !isLoadingData && (
+          <>
+            <div className="max-w-4xl mx-auto mb-8">
+              <h1 className="text-4xl font-bold mb-6">Dashboard</h1>
+            </div>
 
-            {/* Recent Sessions */}
-            {currentPage === 'dashboard' && sessionLogs.length > 0 && (
-              <div className="max-w-4xl mx-auto">
+            {sessionLogs.length > 0 && (
+              <div className="max-w-4xl mx-auto mb-8">
                 <h2 className="text-2xl font-bold mb-4">Recent sessions</h2>
                 <div className="space-y-2">
                   {sessionLogs.map((log) => (
@@ -885,149 +911,102 @@ function App() {
                 </div>
               </div>
             )}
+          </>
+        )}
 
-            {/* Edit Modal */}
-            {editingWorkoutId && (
-              <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-                <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 max-w-md w-full">
-                  <h2 className="text-xl font-bold mb-4">Edit Workout</h2>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-xs text-slate-400 mb-2">Name</label>
-                      <input
-                        type="text"
-                        value={editName}
-                        onChange={(e) => setEditName(e.target.value)}
-                        className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-emerald-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs text-slate-400 mb-2">Description</label>
-                      <textarea
-                        value={editDescription}
-                        onChange={(e) => setEditDescription(e.target.value)}
-                        className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-emerald-500"
-                        rows={3}
-                      />
-                    </div>
-                  </div>
-                  <div className="flex gap-3 mt-6">
-                    <button
-                      onClick={() => setEditingWorkoutId(null)}
-                      className="px-4 py-2 text-sm text-slate-400 hover:text-white"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={handleSaveEdit}
-                      className="flex-1 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-black font-medium"
-                    >
-                      Save
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
         {/* WORKOUTS PAGE */}
-{currentPage === 'exercises' && mode === "overview" && (
-  <>
-    {/* Header */}
-    <div className="max-w-4xl mx-auto mb-8">
-      <h1 className="text-4xl font-bold mb-2">Your Workouts</h1>
-      <p className="text-slate-400 text-sm">Create and manage your training routines</p>
-    </div>
+        {currentPage === 'exercises' && mode === "overview" && (
+          <>
+            <div className="max-w-4xl mx-auto mb-8">
+              <h1 className="text-4xl font-bold mb-2">Your Workouts</h1>
+              <p className="text-slate-400 text-sm">Create and manage your training routines</p>
+            </div>
 
-    {/* Create Workout Form */}
-    <div className="max-w-4xl mx-auto bg-slate-900 rounded-xl border border-slate-800 p-6 mb-8">
-      <h2 className="text-xl font-bold mb-4">Create New Workout</h2>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-        <div>
-          <label className="block text-xs text-slate-400 mb-2">Name</label>
-          <input
-            type="text"
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            placeholder="e.g. Push Day"
-            className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-emerald-500"
-          />
-        </div>
-        <div>
-          <label className="block text-xs text-slate-400 mb-2">Description</label>
-          <input
-            type="text"
-            value={newDescription}
-            onChange={(e) => setNewDescription(e.target.value)}
-            placeholder="Chest, shoulders, triceps..."
-            className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-emerald-500"
-          />
-        </div>
-        <div>
-          <label className="block text-xs text-slate-400 mb-2">Est. duration (min)</label>
-          <input
-            type="number"
-            value={newDuration}
-            onChange={(e) => setNewDuration(e.target.value)}
-            placeholder="60"
-            className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-emerald-500"
-          />
-        </div>
-      </div>
-      <button
-        onClick={handleCreateWorkout}
-        className="w-full py-3 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-black font-medium transition-all"
-      >
-        Create Workout
-      </button>
-    </div>
-
-    {/* Workout List */}
-    <div className="max-w-4xl mx-auto mb-8">
-      <h2 className="text-2xl font-bold mb-4">All Workouts</h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {workouts.map((w, index) => (
-          <div
-            key={w.id}
-            draggable
-            onDragStart={() => setDraggedWorkoutIndex(index)}
-            onDragOver={(e) => { e.preventDefault(); }}
-            onDrop={() => {
-              if (draggedWorkoutIndex !== null) handleMoveWorkout(draggedWorkoutIndex, index);
-              setDraggedWorkoutIndex(null);
-            }}
-            className={`rounded-xl border transition-all cursor-move ${
-              index === 0 ? "border-emerald-500/50 bg-emerald-950/10" : "border-slate-800 bg-slate-900 hover:border-slate-700"
-            }`}
-          >
-            <WorkoutCard
-              id={w.id}
-              name={w.name}
-              description={w.description}
-              exercises={w.exerciseCount}
-              estimatedDuration={w.estimatedDuration}
-              lastPerformed={w.lastPerformed}
-              onStart={handleStartWorkout}
-              onEdit={handleEditWorkout}
-              onDelete={handleDeleteWorkout}
+            <div className="max-w-4xl mx-auto bg-slate-900 rounded-xl border border-slate-800 p-6 mb-8">
+              <h2 className="text-xl font-bold mb-4">Create New Workout</h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                <div>
+                  <label className="block text-xs text-slate-400 mb-2">Name</label>
+                  <input
+                    type="text"
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                    placeholder="e.g. Push Day"
+                    className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-emerald-500"
                   />
                 </div>
-              ))}
+                <div>
+                  <label className="block text-xs text-slate-400 mb-2">Description</label>
+                  <input
+                    type="text"
+                    value={newDescription}
+                    onChange={(e) => setNewDescription(e.target.value)}
+                    placeholder="Chest, shoulders, triceps..."
+                    className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-emerald-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-400 mb-2">Est. duration (min)</label>
+                  <input
+                    type="number"
+                    value={newDuration}
+                    onChange={(e) => setNewDuration(e.target.value)}
+                    placeholder="60"
+                    className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-emerald-500"
+                  />
+                </div>
+              </div>
+              <button
+                onClick={handleCreateWorkout}
+                className="w-full py-3 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-black font-medium transition-all"
+              >
+                Create Workout
+              </button>
             </div>
-          </div>
-        </>
-      )}
 
+            <div className="max-w-4xl mx-auto mb-8">
+              <h2 className="text-2xl font-bold mb-4">All Workouts</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {workouts.map((w, index) => (
+                  <div
+                    key={w.id}
+                    draggable
+                    onDragStart={() => setDraggedWorkoutIndex(index)}
+                    onDragOver={(e) => { e.preventDefault(); }}
+                    onDrop={() => {
+                      if (draggedWorkoutIndex !== null) handleMoveWorkout(draggedWorkoutIndex, index);
+                      setDraggedWorkoutIndex(null);
+                    }}
+                    className={`rounded-xl border transition-all cursor-move ${index === 0 ? "border-emerald-500/50 bg-emerald-950/10" : "border-slate-800 bg-slate-900 hover:border-slate-700"
+                      }`}
+                  >
+                    <WorkoutCard
+                      id={w.id}
+                      name={w.name}
+                      description={w.description}
+                      exercises={w.exerciseCount}
+                      estimatedDuration={w.estimatedDuration}
+                      lastPerformed={w.lastPerformed}
+                      onStart={handleStartWorkout}
+                      onEdit={handleEditWorkout}
+                      onDelete={handleDeleteWorkout}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
 
         {/* ACCOUNT PAGE */}
         {currentPage === 'account' && (
           <AccountPage user={user} />
         )}
 
-        {/* ACTIVE WORKOUT MODE - NUR AUF DASHBOARD */}
-        {currentPage === 'dashboard' && mode === "active" && selectedWorkout && !workoutCollapsed && (
-
+        {/* ACTIVE WORKOUT MODE */}
+        {mode === "active" && selectedWorkout && !workoutCollapsed && (
           <>
-            {/* Active Header */}
-            <div className="max-w-4xl mx-auto bg-slate-900 rounded-xl border border-slate-800 p-4 mb-6">
+            <div className="max-w-4xl mx-auto bg-slate-900 rounded-xl border border-slate-800 p-4 mb-6 mt-16">
               <div className="flex justify-between items-center mb-2">
                 <div>
                   <h1 className="text-2xl font-bold">{selectedWorkout.name}</h1>
@@ -1057,407 +1036,363 @@ function App() {
                 </div>
               </div>
 
-              <div className="flex gap-4 text-sm">
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={autoStartRest}
-                    onChange={(e) => setAutoStartRest(e.target.checked)}
-                    className="accent-blue-500"
-                  />
-                  Auto Rest
-                </label>
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={isDeload}
-                    onChange={(e) => setIsDeload(e.target.checked)}
-                    className="accent-amber-500"
-                  />
-                  Deload
-                </label>
-              </div>
-
               {sessionPRs.length > 0 && (
-                <div className="mt-3 p-3 bg-gradient-to-r from-amber-900/20 to-orange-900/20 border border-amber-500/30 rounded-lg">
-                  <p className="text-xs font-bold text-amber-400 mb-1">Personal Records This Session: {sessionPRs.length}</p>
-                  <div className="flex flex-wrap gap-2">
-                    {sessionPRs.slice(-3).map((pr, i) => (
-                      <span key={i} className="text-xs px-2 py-1 bg-amber-500/20 text-amber-300 rounded">
-                        {pr.exerciseName} - {pr.type.toUpperCase()}
-                      </span>
+                <div className="mt-3 p-3 bg-gradient-to-r from-amber-900/20 to-orange-900/20 border border-amber-900/50 rounded-lg">
+                  <div className="font-bold text-amber-400 text-sm mb-1">🎉 Personal Records This Session:</div>
+                  <div className="text-xs text-slate-300 space-y-1">
+                    {sessionPRs.map((pr, i) => (
+                      <div key={i}>{pr.exerciseName} - {pr.type.toUpperCase()}: {pr.newValue}</div>
                     ))}
                   </div>
                 </div>
               )}
             </div>
 
-            {/* Exercise List View */}
-            {!selectedExerciseId && (
-              <div className="max-w-4xl mx-auto">
-                <div className="bg-slate-900 rounded-xl border border-slate-800 p-6 mb-6">
-                  <h2 className="text-xl font-bold mb-4">Exercises</h2>
+            {showSummary && workoutDuration !== null && (
+              <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+                <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 max-w-md w-full text-center">
+                  <h2 className="text-3xl font-bold mb-2">🎉 Workout Completed!</h2>
+                  <p className="text-slate-400 mb-6">Great job today.</p>
 
-                  {workoutExercises.length === 0 ? (
-                    <div className="text-center py-12">
-                      <p className="text-slate-400 mb-4">No exercises yet. Add some to get started!</p>
+                  <div className="grid grid-cols-3 gap-4 mb-6">
+                    <div className="bg-slate-800 rounded-lg p-4">
+                      <div className="text-2xl font-bold text-emerald-400">{formatTime(workoutDuration)}</div>
+                      <div className="text-xs text-slate-400">Duration</div>
                     </div>
-                  ) : (
-                    <div className="space-y-2 mb-6">
-                      {workoutExercises.map((ex, index) => {
-                        const data = workoutExercisesData[ex.id];
-                        const isCompleted = data && data.sets.some(s => s.completed);
-
-                        return (
-                          <div
-                            key={ex.id}
-                            draggable
-                            onDragStart={() => setDraggedExerciseIndex(index)}
-                            onDragOver={(e) => e.preventDefault()}
-                            onDrop={() => {
-                              if (draggedExerciseIndex !== null) handleMoveExercise(draggedExerciseIndex, index);
-                              setDraggedExerciseIndex(null);
-                            }}
-                            className={`group p-4 rounded-lg border transition-all cursor-pointer ${
-                              isCompleted 
-                                ? 'border-slate-800 bg-slate-950 hover:border-emerald-500/50'
-                                : 'border-slate-700 bg-slate-900/50 hover:border-amber-500/50'
-                            }`}
-                            onClick={() => handleSelectExercise(ex.id)}
-                          >
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-3 flex-1">
-                                <span className="text-xs font-mono text-slate-500">{index + 1}</span>
-
-                                {ex.imageUrl && (
-                                  <img
-                                    src={ex.imageUrl}
-                                    alt={ex.name}
-                                    className="w-12 h-12 rounded object-cover"
-                                  />
-                                )}
-
-                                <div className="flex-1 min-w-0">
-                                  <h3 className="font-bold text-white group-hover:text-emerald-400 transition-colors truncate">
-                                    {ex.name}
-                                  </h3>
-                                  <p className="text-xs text-slate-500 uppercase">{ex.muscleGroup}</p>
-                                  {ex.instructions?.[0] && (
-                                    <p className="text-xs text-slate-400 mt-1 line-clamp-2">{ex.instructions[0]}</p>
-                                 )}
-                                </div>
-
-                              </div>
-
-                              <div className="flex items-center gap-4">
-                                {!isCompleted && (
-                                  <span className="text-xs text-slate-500 px-2 py-1 bg-slate-800 rounded">
-                                    Not started
-                                  </span>
-                                )}
-
-                                {isCompleted && (
-                                  <div className="text-right">
-                                    <div className="text-emerald-400 font-bold">{data.volume.toLocaleString()} kg</div>
-                                    <div className="text-xs text-slate-400">{data.sets.filter(s => s.completed).length} sets</div>
-                                  </div>
-                                )}
-
-                                {isCompleted ? (
-                                  <span className="text-emerald-400 text-xl font-bold">✓</span>
-                                ) : (
-                                  <span className="text-slate-600 text-xl font-bold">✓</span>
-                                )}
-
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleRemoveExercise(ex.id);
-                                  }}
-                                  className="text-slate-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity px-2"
-                                >
-                                  ✕
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
+                    <div className="bg-slate-800 rounded-lg p-4">
+                      <div className="text-2xl font-bold text-emerald-400">{totalVolume.toLocaleString()} kg</div>
+                      <div className="text-xs text-slate-400">Volume</div>
                     </div>
-                  )}
+                    <div className="bg-slate-800 rounded-lg p-4">
+                      <div className="text-2xl font-bold text-emerald-400">{totalSetsCompleted}</div>
+                      <div className="text-xs text-slate-400">Sets</div>
+                    </div>
+                  </div>
 
-                  {/* Add Exercise Button */}
                   <button
                     onClick={() => {
-                      setSelectedExerciseIds([]);
-                      setShowExerciseSearchModal(true);
+                      setShowSummary(false);
+                      setMode("overview");
+                      setSelectedWorkoutId(null);
+                      setWorkoutExercises([]);
+                      setWorkoutExercisesData({});
+                      setWorkoutStartTime(null);
+                      setSessionPRs([]);
+                      setWorkoutStarted(false);
+                      localStorage.removeItem('activeWorkout');
                     }}
-                    className="w-full py-4 rounded-lg border-2 border-dashed border-slate-700 hover:border-emerald-500 text-slate-400 hover:text-emerald-400 font-medium transition-all"
+                    className="w-full py-3 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-black font-bold transition-all"
                   >
-                    + Add Exercise
-                  </button>
-                </div>
-
-                {/* Session Notes & Complete */}
-                <div className="bg-slate-900 rounded-xl border border-slate-800 p-6 mb-6">
-                  <h3 className="font-bold text-sm mb-2">Session Notes</h3>
-                  <textarea
-                    value={sessionNotes}
-                    onChange={(e) => setSessionNotes(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-sm focus:border-emerald-500 outline-none mb-4"
-                    placeholder="How was the training?"
-                    rows={3}
-                  />
-
-                  <button
-                    onClick={handleCompleteWorkout}
-                    disabled={Object.keys(workoutExercisesData).length === 0}
-                    className="w-full py-4 rounded-xl font-bold text-lg transition-all relative overflow-hidden group
-                      disabled:opacity-50 disabled:cursor-not-allowed
-                      bg-gradient-to-r from-emerald-500 to-emerald-600 
-                      hover:from-emerald-600 hover:to-emerald-700 text-black
-                      shadow-lg hover:shadow-emerald-500/50"
-                  >
-                    <span className="relative z-10">Complete Workout</span>
-                    <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-20 transition-opacity"></div>
+                    Done
                   </button>
                 </div>
               </div>
             )}
 
-            {/* Exercise Detail View */}
+            {!selectedExerciseId && (
+              <div className="max-w-4xl mx-auto space-y-3 mb-8">
+                {workoutExercises.map((ex, index) => {
+                  const isCompleted = !!workoutExercisesData[ex.id];
+                  return (
+                    <div
+                      key={ex.id}
+                      draggable
+                      onDragStart={() => setDraggedExerciseIndex(index)}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={() => {
+                        if (draggedExerciseIndex !== null) {
+                          handleMoveExercise(draggedExerciseIndex, index);
+                          setDraggedExerciseIndex(null);
+                        }
+                      }}
+                      className="group cursor-move"
+                    >
+                      <button
+                        onClick={() => handleSelectExercise(ex.id)}
+                        className={`w-full p-4 rounded-lg border transition-all text-left flex items-center gap-4 ${isCompleted
+                            ? "bg-emerald-950/20 border-emerald-500/50"
+                            : "bg-slate-900 border-slate-800 hover:border-slate-700"
+                          }`}
+                      >
+                        {ex.imageUrl && (
+                          <img
+                            src={ex.imageUrl}
+                            alt={ex.name}
+                            className="w-16 h-16 object-cover rounded-lg"
+                          />
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-bold text-white group-hover:text-emerald-400 transition-colors truncate">
+                            {ex.name}
+                          </h3>
+                          <p className="text-xs text-slate-500 uppercase">{ex.muscleGroup}</p>
+                          {ex.instructions?.[0] && (
+                            <p className="text-xs text-slate-400 mt-1 line-clamp-2">{ex.instructions[0]}</p>
+                          )}
+                          {isCompleted && (
+                            <p className="text-xs text-emerald-400 mt-1">
+                              {workoutExercisesData[ex.id].sets.filter(s => s.completed).length} sets · {workoutExercisesData[ex.id].volume} kg
+                            </p>
+                          )}
+                        </div>
+                        {isCompleted ? (
+                          <span className="text-emerald-400 text-2xl font-bold">✓</span>
+                        ) : (
+                          <span className="text-slate-600 text-xl font-bold">○</span>
+                        )}
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemoveExercise(ex.id);
+                        }}
+                        className="ml-4 mt-2 text-xs text-red-400 hover:text-red-300"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  );
+                })}
+
+                <button
+                  onClick={() => setShowExerciseSearchModal(true)}
+                  className="w-full py-4 rounded-lg border-2 border-dashed border-slate-700 hover:border-emerald-500 text-slate-400 hover:text-emerald-400 transition-all"
+                >
+                  + Add Exercise
+                </button>
+              </div>
+            )}
+
             {selectedExerciseId && selectedExercise && (
               <div className="max-w-4xl mx-auto">
-                <button
-                  onClick={handleSaveExercise}
-                  className="mb-4 text-emerald-400 hover:text-emerald-300 flex items-center gap-2"
-                >
-                  ← Back to Exercise List
-                </button>
-
                 <ActiveWorkoutCard
-                  exerciseId={selectedExercise.id}
+                  exerciseId={selectedExerciseId}
                   exerciseName={selectedExercise.name}
                   muscleGroup={selectedExercise.muscleGroup}
                   sets={activeSets}
                   note={selectedExercise.note}
-                  isDeload={isDeload}
                   onSetChange={(index: number, field: string, value: any) => {
-                    setActiveSets(prev => {
-                      const updated = prev.map((s, i) => 
-                        i === index ? { ...s, [field]: field === "completed" ? Boolean(value) : value } : s
-                      );
-
-                      if (field === "completed" && value && autoStartRest) {
-                        setShowRestTimer(true);
-                      }
-
-                      const vol = updated.reduce((sum, s) => 
-                        (s.weight && s.reps && s.completed) ? sum + (s.weight * s.reps) : sum, 0
-                      );
-                      const setsDone = updated.filter(s => s.completed).length;
-
-                      setTotalVolume(vol);
-                      setTotalSetsCompleted(setsDone);
-
-                      return updated;
-                    });
+                    setActiveSets(prev => prev.map((s, i) => 
+                      i === index ? { ...s, [field]: value } : s
+                    ));
                   }}
-                  onAddSet={() => setActiveSets(prev => [
-                    ...prev,
-                    { setNumber: prev.length + 1, weight: null, reps: null, rpe: null, completed: false }
-                  ])}
-                  onStartRest={(s: number) => {
-                    setCustomRestSeconds(s);
+                  onAddSet={() => {
+                    setActiveSets(prev => [...prev, {
+                      setNumber: prev.length + 1,
+                      weight: null,
+                      reps: null,
+                      rpe: null,
+                      completed: false
+                    }]);
+                  }}
+                  onStartRest={(seconds: number) => {
+                    setCustomRestSeconds(seconds);
                     setShowRestTimer(true);
                   }}
                   onNoteChange={(note: string) => {
                     setWorkoutExercises(prev => prev.map(ex => 
-                      ex.id === selectedExercise.id ? { ...ex, note } : ex
+                      ex.id === selectedExerciseId ? { ...ex, note } : ex
                     ));
                   }}
+                  isDeload={isDeload}
                 />
-
-                <button
-                  onClick={handleSaveExercise}
-                  className="w-full mt-4 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-black font-medium transition-all"
-                >
-                  Save & Continue
-                </button>
+                
+                <div className="max-w-4xl mx-auto mt-4 flex gap-3">
+                  <button
+                    onClick={() => setSelectedExerciseId(null)}
+                    className="flex-1 py-3 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-medium"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSaveExercise}
+                    className="flex-1 py-3 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-black font-medium"
+                  >
+                    Save & Continue
+                  </button>
+                </div>
               </div>
             )}
           </>
         )}
-      </div>
 
+        {/* MODALS */}
+        {editingWorkoutId && (
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 max-w-md w-full">
+              <h2 className="text-xl font-bold mb-4">Edit Workout</h2>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs text-slate-400 mb-2">Name</label>
+                  <input
+                    type="text"
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-emerald-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-400 mb-2">Description</label>
+                  <textarea
+                    value={editDescription}
+                    onChange={(e) => setEditDescription(e.target.value)}
+                    className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-emerald-500"
+                    rows={3}
+                  />
+                </div>
+              </div>
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={() => setEditingWorkoutId(null)}
+                  className="px-4 py-2 text-sm text-slate-400 hover:text-white"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveEdit}
+                  className="flex-1 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-black font-medium"
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
-      {/* Workout Settings Modal */}
-      {/* Workout Settings Modal */}
-      {showWorkoutSettings && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 max-w-sm w-full max-h-[80vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold">Workout Settings</h2>
-              <button 
+        {showWorkoutSettings && (
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 max-w-sm w-full max-h-[80vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold">Workout Settings</h2>
+                <button
+                  onClick={() => setShowWorkoutSettings(false)}
+                  className="text-slate-400 hover:text-white text-xl p-1 rounded hover:bg-slate-800"
+                >
+                  ×
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <label className="flex items-center gap-3 p-3 bg-slate-800/50 rounded-lg cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={autoStartRest}
+                    onChange={(e) => setAutoStartRest(e.target.checked)}
+                    className="w-5 h-5 accent-blue-500 rounded"
+                  />
+                  <span className="text-sm">Auto Start Rest Timer</span>
+                </label>
+
+                <label className="flex items-center gap-3 p-3 bg-slate-800/50 rounded-lg cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={isDeload}
+                    onChange={(e) => setIsDeload(e.target.checked)}
+                    className="w-5 h-5 accent-amber-500 rounded"
+                  />
+                  <span className="text-sm font-medium text-amber-400">Deload Week</span>
+                </label>
+
+                <div>
+                  <label className="block text-xs text-slate-400 mb-2">Default Rest Time</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      value={Math.round(customRestSeconds / 60)}
+                      onChange={(e) => setCustomRestSeconds(parseInt(e.target.value) * 60 || 90)}
+                      min="0.5"
+                      step="0.5"
+                      className="flex-1 rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm focus:border-emerald-500 outline-none"
+                    />
+                    <span className="text-slate-500 px-2">min</span>
+                  </div>
+                </div>
+              </div>
+
+              <button
                 onClick={() => setShowWorkoutSettings(false)}
-                className="text-slate-400 hover:text-white text-xl p-1 rounded hover:bg-slate-800"
+                className="w-full mt-6 py-3 rounded-lg bg-emerald-500/20 border border-emerald-500/50 hover:bg-emerald-500/30 text-emerald-400 font-medium transition-all"
               >
-                ×
+                Done
               </button>
             </div>
-            
-            <div className="space-y-4">
-              <label className="flex items-center gap-3 p-3 bg-slate-800/50 rounded-lg cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={autoStartRest}
-                  onChange={(e) => setAutoStartRest(e.target.checked)}
-                  className="w-5 h-5 accent-blue-500 rounded"
-                />
-                <span className="text-sm">Auto Start Rest Timer</span>
-              </label>
-              
-              <label className="flex items-center gap-3 p-3 bg-slate-800/50 rounded-lg cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={isDeload}
-                  onChange={(e) => setIsDeload(e.target.checked)}
-                  className="w-5 h-5 accent-amber-500 rounded"
-                />
-                <span className="text-sm font-medium text-amber-400">Deload Week</span>
-              </label>
-              
-              <div>
-                <label className="block text-xs text-slate-400 mb-2">Default Rest Time</label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    value={Math.round(customRestSeconds / 60)}
-                    onChange={(e) => setCustomRestSeconds(parseInt(e.target.value) * 60 || 90)}
-                    min="0.5"
-                    step="0.5"
-                    className="flex-1 rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm focus:border-emerald-500 outline-none"
-                  />
-                  <span className="text-slate-500 px-2">min</span>
-                </div>
+          </div>
+        )}
+
+        {showDiscardConfirm && (
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 max-w-sm w-full text-center">
+              <h2 className="text-xl font-bold mb-4">Workout beenden?</h2>
+              <p className="text-slate-400 mb-6">Deine Fortschritte gehen verloren.</p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowDiscardConfirm(false)}
+                  className="flex-1 py-3 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-medium"
+                >
+                  Abbrechen
+                </button>
+                <button
+                  onClick={handleConfirmDiscard}
+                  className="flex-1 py-3 rounded-lg bg-red-500 hover:bg-red-600 text-white font-medium"
+                >
+                  Beenden
+                </button>
               </div>
             </div>
-            
-            <button
-              onClick={() => setShowWorkoutSettings(false)}
-              className="w-full mt-6 py-3 rounded-lg bg-emerald-500/20 border border-emerald-500/50 hover:bg-emerald-500/30 text-emerald-400 font-medium transition-all"
-            >
-              Done
-            </button>
           </div>
-        </div>
-      )}
+        )}
 
+        {selectedSession && (
+          <SessionDetailModal
+            session={selectedSession}
+            onClose={() => setSelectedSession(null)}
+          />
+        )}
 
+        {selectedExerciseDetail && (
+          <ExerciseDetailModal
+            exercise={selectedExerciseDetail}
+            onClose={() => setSelectedExerciseDetail(null)}
+          />
+        )}
 
-      {/* MODALS */}
+        {selectedExerciseForDetail && (
+          <ExerciseDetailModal
+            exercise={selectedExerciseForDetail}
+            onClose={() => setSelectedExerciseForDetail(null)}
+          />
+        )}
 
+        {showExerciseSearchModal && (
+          <ExerciseSearchModal
+            isOpen={showExerciseSearchModal}
+            onClose={() => {
+              setShowExerciseSearchModal(false);
+              setSelectedExerciseIds([]);
+            }}
+            onSelectExercise={(exerciseId: string) => {
+              const exercise = ALL_EXERCISES.find(ex => ex.id === exerciseId);
+              if (exercise) {
+                setWorkoutExercises(prev => [...prev, exercise]);
+                setShowExerciseSearchModal(false);
+              }
+            }}
+            allExercises={ALL_EXERCISES}
+            muscleGroups={["chest", "back", "legs", "shoulders", "arms", "core", "glutes"]}
+          />
+        )}
 
-      {/* Summary Modal */}
-      {showSummary && workoutDuration != null && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-8 max-w-md w-full text-center">
-            <h2 className="text-3xl font-bold mb-2">Workout Completed!</h2>
-            <p className="text-slate-400 mb-6">Great job today.</p>
+        {showRestTimer && (
+          <RestTimer
+            initialSeconds={customRestSeconds}
+            onDismiss={() => setShowRestTimer(false)}
+            autoStart={true}
+          />
+        )}
 
-            <div className="grid grid-cols-3 gap-4 mb-6">
-              <div className="bg-slate-950 rounded-lg p-4">
-                <div className="text-2xl font-bold text-emerald-400">{formatTime(workoutDuration)}</div>
-                <div className="text-xs text-slate-400">Duration</div>
-              </div>
-              <div className="bg-slate-950 rounded-lg p-4">
-                <div className="text-2xl font-bold text-emerald-400">{(totalVolume / 1000).toFixed(1)}k</div>
-                <div className="text-xs text-slate-400">Vol (kg)</div>
-              </div>
-              <div className="bg-slate-950 rounded-lg p-4">
-                <div className="text-2xl font-bold text-emerald-400">{totalSetsCompleted}</div>
-                <div className="text-xs text-slate-400">Sets</div>
-              </div>
-            </div>
+      </div>
 
-            {sessionPRs.length > 0 && (
-              <div className="mb-6 p-4 bg-gradient-to-r from-amber-900/20 to-orange-900/20 border border-amber-500/30 rounded-lg">
-                <p className="font-bold text-amber-400 mb-2">🎉 {sessionPRs.length} Personal Record{sessionPRs.length > 1 ? 's' : ''}!</p>
-                <div className="space-y-1">
-                  {sessionPRs.map((pr, i) => (
-                    <p key={i} className="text-xs text-amber-300">
-                      {pr.exerciseName}: {pr.type.toUpperCase()} {pr.oldValue} → {pr.newValue}
-                    </p>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <button
-              onClick={() => {
-                setShowSummary(false);
-                handleReturnToDashboard();
-              }}
-              className="w-full py-3 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-black font-medium"
-            >
-              Back to Dashboard
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Rest Timer */}
-      {showRestTimer && (
-        <RestTimer
-          initialSeconds={customRestSeconds}
-          onDismiss={() => setShowRestTimer(false)}
-        />
-      )}
-
-      {/* Exercise Detail Modal */}
-      <ExerciseDetailModal
-        exercise={selectedExerciseDetail || selectedExerciseForDetail}
-        onClose={() => {
-          setSelectedExerciseDetail(null);
-          setSelectedExerciseForDetail(null);
-        }}
-      />
-
-      {/* Exercise Search Modal */}
-      <ExerciseSearchModal
-        isOpen={showExerciseSearchModal}
-        onClose={() => {
-          if (selectedExerciseIds.length > 0 && confirm(`Add ${selectedExerciseIds.length} exercise(s)?`)) {
-            handleAddExercisesToWorkout();
-          } else {
-            setShowExerciseSearchModal(false);
-            setSelectedExerciseIds([]);
-          }
-        }}
-        onSelectExercise={(exerciseId: string) => {
-          setSelectedExerciseIds(prev => 
-            prev.includes(exerciseId)
-              ? prev.filter(id => id !== exerciseId)
-              : [...prev, exerciseId]
-          );
-        }}
-        allExercises={ALL_EXERCISES}
-        muscleGroups={MUSCLE_GROUPS}
-        selectedExerciseIds={selectedExerciseIds}
-        multiSelect={true}
-      />
-
-      {/* Session Detail Modal */}
-      <SessionDetailModal
-        session={selectedSession}
-        onClose={() => setSelectedSession(null)}
-      />
-
-      {/* Bottom Navigation */}
-      <BottomNav
-        currentPage={currentPage}
-        onNavigate={(page) => setCurrentPage(page)}
-      />
+      <BottomNav currentPage={currentPage} onNavigate={setCurrentPage} />
     </div>
   );
 }

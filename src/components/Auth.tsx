@@ -11,7 +11,7 @@ export function Auth() {
 
   // Handle password recovery from email link
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, _session) => {
       if (event === 'PASSWORD_RECOVERY') {
         const newPassword = prompt('🔐 Neues Passwort eingeben (min. 6 Zeichen):')
         if (newPassword && newPassword.length >= 6) {

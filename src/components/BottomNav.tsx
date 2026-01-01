@@ -7,15 +7,15 @@ type BottomNavProps = {
 
 export const BottomNav: React.FC<BottomNavProps> = ({ currentPage, onNavigate }) => {
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-black/0 border-t border-slate-800/20 backdrop-blur-sm z-50">
+    <nav className="fixed bottom-0 left-0 right-0 bg-black/0 border-t-0 z-50">
       <div className="max-w-4xl mx-auto px-4">
         <div className="flex justify-around items-center h-16">
           <button
             onClick={() => onNavigate("dashboard")}
             className={`flex flex-col items-center gap-1 px-6 py-2 rounded-lg transition-all ${
               currentPage === "dashboard"
-                ? "text-emerald-400"
-                : "text-slate-400 hover:text-white"
+                ? "text-emerald-400 scale-105"
+                : "text-slate-400 hover:text-white hover:scale-105"
             }`}
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
