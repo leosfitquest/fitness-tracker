@@ -121,101 +121,41 @@ export function ExerciseSearchModal({
           </div>
         </div>
 
-        {/* Exercise List - Scrollable */}
-        <div className="flex-1 overflow-y-auto p-6">
-          <p className="text-xs text-slate-400 mb-3">
-            {filteredExercises.length} exercise{filteredExercises.length !== 1 ? 's' : ''} found
-          </p>
+        {/* Exercise List */}
+        <div className="text-xs text-slate-400 mb-2">
+          {filteredExercises.length} exercise{filteredExercises.length !== 1 ? 's' : ''}
+        </div>
 
-          <div className="space-y-2">
-            {filteredExercises.map((ex) => {
-              const selected = isSelected(ex.id);
-
-              return (
-                <button
-                  key={ex.id}
-                  onClick={() => handleSelect(ex.id)}
-                  className={`group w-full p-4 rounded-lg border transition-all text-left ${
-                    selected
-                      ? 'border-emerald-500 bg-emerald-900/20'
-                      : 'border-slate-800 bg-slate-950 hover:bg-slate-800 hover:border-emerald-500/50'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    {/* 🆕 NEU: Selection Checkbox für Multi-Select */}
-                    {multiSelect && (
-                      <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
-                        selected 
-                          ? 'border-emerald-500 bg-emerald-500' 
-                          : 'border-slate-600'
-                      }`}>
-                        {selected && (
-                          <svg className="w-3 h-3 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                          </svg>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Exercise Image */}
-                    {ex.imageUrl && (
-                      <img
-                        src={ex.imageUrl}
-                        alt={ex.name}
-                        className="w-16 h-16 rounded-lg object-cover"
-                      />
-                    )}
-
-                    {/* Exercise Info */}
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-bold text-white group-hover:text-emerald-400 transition-colors">
-                        {ex.name}
-                      </h3>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="px-2 py-0.5 bg-slate-800 text-slate-400 rounded text-xs uppercase">
-                          {ex.muscleGroup}
-                        </span>
-                        {ex.equipment && (
-                          <span className="text-xs text-slate-500">
-                            {ex.equipment}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Selection Indicator */}
-                    {!multiSelect ? (
-                      <svg 
-                        className="w-5 h-5 text-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity" 
-                        fill="none" 
-                        stroke="currentColor" 
-                        viewBox="0 0 24 24"
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                      </svg>
-                    ) : selected && (
-                      <svg 
-                        className="w-5 h-5 text-emerald-400" 
-                        fill="none" 
-                        stroke="currentColor" 
-                        viewBox="0 0 24 24"
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                    )}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-
+        {/* FIXED: Scrollable Container */}
+        <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2">
+          {filteredExercises.map((ex) => (
+            <button
+              key={ex.id}
+              onClick={() => handleSelect(ex.id)}
+              className="group w-full p-3 rounded-lg border border-slate-800 bg-slate-950 hover:bg-slate-800 hover:border-emerald-500 transition-all text-left flex items-center gap-3"
+            >
+              {ex.imageUrl && (
+                <img
+                  src={ex.imageUrl}
+                  alt={ex.name}
+                  className="w-12 h-12 object-cover rounded-md"
+                />
+              )}
+              <div className="flex-1 min-w-0">
+                <h3 className="font-bold text-white group-hover:text-emerald-400 truncate">
+                  {ex.name}
+                </h3>
+                <p className="text-xs text-slate-500 uppercase">{ex.muscleGroup}</p>
+              </div>
+            </button>
+          ))}
+          
           {filteredExercises.length === 0 && (
-            <div className="text-center py-12">
-              <p className="text-slate-400 mb-2">No exercises found</p>
-              <p className="text-sm text-slate-500">Try a different search term or filter</p>
+            <div className="text-center py-8 text-slate-500">
+              No exercises found. Try a different search term.
             </div>
           )}
-        </div>
+        </div> 
 
         {/* 🆕 NEU: Footer mit Done Button für Multi-Select */}
         {multiSelect && selectedExerciseIds.length > 0 && (
