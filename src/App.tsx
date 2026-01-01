@@ -199,6 +199,12 @@ function App() {
   // Navigation State
   const [currentPage, setCurrentPage] = useState<'dashboard' | 'exercises' | 'account'>('dashboard');
   const [workoutStarted, setWorkoutStarted] = useState(false);
+
+  // Advanced Features Toggles
+  const [showRPE, setShowRPE] = useState(false);
+  const [show1RM, setShow1RM] = useState(false);
+  const [showPlateCalculator, setShowPlateCalculator] = useState(false);
+
   const [selectedExerciseForDetail, setSelectedExerciseForDetail] = useState<Exercise | null>(null);
 
   // Workout Mini-Bar collapsed
@@ -457,7 +463,7 @@ function App() {
     const workout = workouts.find(w => w.id === id);
     if (!workout) return;
 
-    
+    // KEIN ALERT MEHR - Workout kann auch ohne Übungen gestartet werden
 
     setSelectedWorkoutId(id);
     setSessionPRs([]);
@@ -493,43 +499,43 @@ function App() {
     setShowSummary(false);
     setCurrentPage('dashboard');
   };
-
-const handleQuickCreateWorkout = async () => {
+  const handleQuickCreateWorkout = async () => {
   if (!user) return;
 
-  const workoutName = `Workout ${workouts.length + 1}`;
-  
-  try {
-    const payload = {
-      user_id: user.id,
-      name: workoutName,
-      description: '',
-      estimated_duration: undefined,
-      exercise_count: 0,
-      exercises: []
-    };
-
-    const { data, error } = await supabase.from('workouts').insert(payload).select().single();
-    if (error || !data) throw error;
-
-    const created: Workout = {
-      id: data.id,
-      name: data.name,
-      description: data.description,
-      exerciseCount: 0,
-      estimatedDuration: data.estimated_duration,
-      lastPerformed: data.last_performed,
-      exercises: []
-    };
-
-    setWorkouts((prev) => [created, ...prev]);
+    const workoutName = `Workout ${workouts.length + 1}`;
     
-    // Direkt starten
-    handleStartWorkout(created.id);
-  } catch (err: any) {
-    console.error("Error creating workout:", err);
-  }
-};
+    try {
+      const payload = {
+        user_id: user.id,
+        name: workoutName,
+        description: '',
+        estimated_duration: undefined,
+        exercise_count: 0,
+        exercises: []
+      };
+
+      const { data, error } = await supabase.from('workouts').insert(payload).select().single();
+      if (error || !data) throw error;
+
+      const created: Workout = {
+        id: data.id,
+        name: data.name,
+        description: data.description,
+        exerciseCount: 0,
+        estimatedDuration: data.estimated_duration,
+        lastPerformed: data.last_performed,
+        exercises: []
+      };
+
+      setWorkouts((prev) => [created, ...prev]);
+      
+      // Direkt starten
+      handleStartWorkout(created.id);
+    } catch (err: any) {
+      console.error("Error creating workout:", err);
+    }
+  };
+
 
   const handleAddExercisesToWorkout = () => {
     const newExercises = selectedExerciseIds
@@ -607,7 +613,7 @@ const handleQuickCreateWorkout = async () => {
   const handleCompleteWorkout = async () => {
     if (!selectedWorkoutId || !sessionStart || !workoutStartTime || !user) return;
 
-
+    // KEIN ALERT MEHR - auch leere Workouts können beendet werden
 
     const workout = workouts.find(w => w.id === selectedWorkoutId);
     if (!workout) return;
@@ -673,7 +679,6 @@ const handleQuickCreateWorkout = async () => {
 
     } catch (err: any) {
       console.error("Error saving workout session:", err);
-      alert(`Fehler beim Speichern: ${err.message}`);
     }
 
     setWorkoutDuration(durationSeconds);
@@ -953,9 +958,8 @@ const handleQuickCreateWorkout = async () => {
               <p className="text-slate-400 text-sm">Create and manage your training routines</p>
             </div>
 
-            {/* Workout List */}
             <div className="max-w-4xl mx-auto mb-24">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                 {workouts.map((w, index) => (
                   <div
                     key={w.id}
@@ -985,10 +989,10 @@ const handleQuickCreateWorkout = async () => {
                 ))}
               </div>
 
-              {/* ADD WORKOUT BUTTON - UNTEN */}
+              {/* ADD WORKOUT BUTTON */}
               <button
                 onClick={handleQuickCreateWorkout}
-                className="w-full mt-6 py-6 rounded-xl border-2 border-dashed border-emerald-500/30 hover:border-emerald-500 bg-emerald-950/10 hover:bg-emerald-950/20 text-emerald-400 hover:text-emerald-300 font-bold text-lg transition-all flex items-center justify-center gap-3"
+                className="w-full py-6 rounded-xl border-2 border-dashed border-emerald-500/30 hover:border-emerald-500 bg-emerald-950/10 hover:bg-emerald-950/20 text-emerald-400 hover:text-emerald-300 font-bold text-lg transition-all flex items-center justify-center gap-3"
               >
                 <span className="text-2xl">+</span>
                 <span>Create New Workout</span>
@@ -1260,47 +1264,97 @@ const handleQuickCreateWorkout = async () => {
 
         {showWorkoutSettings && (
           <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 max-w-sm w-full max-h-[80vh] overflow-y-auto">
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 max-w-md w-full max-h-[80vh] overflow-y-auto">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-bold">Workout Settings</h2>
+                <h2 className="text-xl font-bold">⚙️ Workout Settings</h2>
                 <button
                   onClick={() => setShowWorkoutSettings(false)}
                   className="text-slate-400 hover:text-white text-xl p-1 rounded hover:bg-slate-800"
                 >
-                  ×
+                  ✕
                 </button>
               </div>
 
               <div className="space-y-4">
-                <label className="flex items-center gap-3 p-3 bg-slate-800/50 rounded-lg cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={autoStartRest}
-                    onChange={(e) => setAutoStartRest(e.target.checked)}
-                    className="w-5 h-5 accent-blue-500 rounded"
-                  />
-                  <span className="text-sm">Auto Start Rest Timer</span>
-                </label>
+                {/* BASIC SETTINGS */}
+                <div className="border-b border-slate-700 pb-4">
+                  <h3 className="text-sm font-bold text-slate-300 mb-3">BASIC</h3>
+                  
+                  <label className="flex items-center gap-3 p-3 bg-slate-800/50 rounded-lg cursor-pointer mb-2">
+                    <input
+                      type="checkbox"
+                      checked={autoStartRest}
+                      onChange={(e) => setAutoStartRest(e.target.checked)}
+                      className="w-5 h-5 accent-emerald-500 rounded"
+                    />
+                    <span className="text-sm">Auto Start Rest Timer</span>
+                  </label>
 
-                <label className="flex items-center gap-3 p-3 bg-slate-800/50 rounded-lg cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={isDeload}
-                    onChange={(e) => setIsDeload(e.target.checked)}
-                    className="w-5 h-5 accent-amber-500 rounded"
-                  />
-                  <span className="text-sm font-medium text-amber-400">Deload Week</span>
-                </label>
+                  <label className="flex items-center gap-3 p-3 bg-slate-800/50 rounded-lg cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={isDeload}
+                      onChange={(e) => setIsDeload(e.target.checked)}
+                      className="w-5 h-5 accent-amber-500 rounded"
+                    />
+                    <span className="text-sm font-medium text-amber-400">🔥 Deload Week</span>
+                  </label>
+                </div>
 
+                {/* ADVANCED FEATURES */}
+                <div className="border-b border-slate-700 pb-4">
+                  <h3 className="text-sm font-bold text-emerald-400 mb-3">🔬 ADVANCED FEATURES</h3>
+                  
+                  <label className="flex items-center gap-3 p-3 bg-emerald-950/20 border border-emerald-900/50 rounded-lg cursor-pointer mb-2 hover:bg-emerald-950/30">
+                    <input
+                      type="checkbox"
+                      checked={showRPE}
+                      onChange={(e) => setShowRPE(e.target.checked)}
+                      className="w-5 h-5 accent-emerald-500 rounded"
+                    />
+                    <div className="flex-1">
+                      <span className="text-sm font-medium">Show RPE</span>
+                      <p className="text-xs text-slate-400">Rate of Perceived Exertion (1-10)</p>
+                    </div>
+                  </label>
+
+                  <label className="flex items-center gap-3 p-3 bg-emerald-950/20 border border-emerald-900/50 rounded-lg cursor-pointer mb-2 hover:bg-emerald-950/30">
+                    <input
+                      type="checkbox"
+                      checked={show1RM}
+                      onChange={(e) => setShow1RM(e.target.checked)}
+                      className="w-5 h-5 accent-emerald-500 rounded"
+                    />
+                    <div className="flex-1">
+                      <span className="text-sm font-medium">Show 1RM Calculator</span>
+                      <p className="text-xs text-slate-400">Estimated 1 Rep Max</p>
+                    </div>
+                  </label>
+
+                  <label className="flex items-center gap-3 p-3 bg-emerald-950/20 border border-emerald-900/50 rounded-lg cursor-pointer hover:bg-emerald-950/30">
+                    <input
+                      type="checkbox"
+                      checked={showPlateCalculator}
+                      onChange={(e) => setShowPlateCalculator(e.target.checked)}
+                      className="w-5 h-5 accent-emerald-500 rounded"
+                    />
+                    <div className="flex-1">
+                      <span className="text-sm font-medium">Show Plate Calculator</span>
+                      <p className="text-xs text-slate-400">Calculate plates needed (e.g., 20kg + 5kg × 2)</p>
+                    </div>
+                  </label>
+                </div>
+
+                {/* DEFAULT REST TIME */}
                 <div>
                   <label className="block text-xs text-slate-400 mb-2">Default Rest Time</label>
                   <div className="flex items-center gap-2">
                     <input
                       type="number"
                       value={Math.round(customRestSeconds / 60)}
-                      onChange={(e) => setCustomRestSeconds(parseInt(e.target.value) * 60 || 90)}
-                      min="0.5"
-                      step="0.5"
+                      onChange={(e) => setCustomRestSeconds(parseInt(e.target.value) * 60)}
+                      min={0.5}
+                      step={0.5}
                       className="flex-1 rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm focus:border-emerald-500 outline-none"
                     />
                     <span className="text-slate-500 px-2">min</span>
