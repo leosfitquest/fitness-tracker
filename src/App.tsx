@@ -457,10 +457,7 @@ function App() {
     const workout = workouts.find(w => w.id === id);
     if (!workout) return;
 
-    if (!workout.exercises || workout.exercises.length === 0) {
-      alert("⚠️ Bitte füge zuerst Übungen zu diesem Workout hinzu!");
-      return;
-    }
+    
 
     setSelectedWorkoutId(id);
     setSessionPRs([]);
@@ -496,6 +493,43 @@ function App() {
     setShowSummary(false);
     setCurrentPage('dashboard');
   };
+
+const handleQuickCreateWorkout = async () => {
+  if (!user) return;
+
+  const workoutName = `Workout ${workouts.length + 1}`;
+  
+  try {
+    const payload = {
+      user_id: user.id,
+      name: workoutName,
+      description: '',
+      estimated_duration: undefined,
+      exercise_count: 0,
+      exercises: []
+    };
+
+    const { data, error } = await supabase.from('workouts').insert(payload).select().single();
+    if (error || !data) throw error;
+
+    const created: Workout = {
+      id: data.id,
+      name: data.name,
+      description: data.description,
+      exerciseCount: 0,
+      estimatedDuration: data.estimated_duration,
+      lastPerformed: data.last_performed,
+      exercises: []
+    };
+
+    setWorkouts((prev) => [created, ...prev]);
+    
+    // Direkt starten
+    handleStartWorkout(created.id);
+  } catch (err: any) {
+    console.error("Error creating workout:", err);
+  }
+};
 
   const handleAddExercisesToWorkout = () => {
     const newExercises = selectedExerciseIds
@@ -573,10 +607,7 @@ function App() {
   const handleCompleteWorkout = async () => {
     if (!selectedWorkoutId || !sessionStart || !workoutStartTime || !user) return;
 
-    if (Object.keys(workoutExercisesData).length === 0) {
-      alert("⚠️ Bitte schließe mindestens eine Übung ab!");
-      return;
-    }
+
 
     const workout = workouts.find(w => w.id === selectedWorkoutId);
     if (!workout) return;
@@ -922,50 +953,8 @@ function App() {
               <p className="text-slate-400 text-sm">Create and manage your training routines</p>
             </div>
 
-            <div className="max-w-4xl mx-auto bg-slate-900 rounded-xl border border-slate-800 p-6 mb-8">
-              <h2 className="text-xl font-bold mb-4">Create New Workout</h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                <div>
-                  <label className="block text-xs text-slate-400 mb-2">Name</label>
-                  <input
-                    type="text"
-                    value={newName}
-                    onChange={(e) => setNewName(e.target.value)}
-                    placeholder="e.g. Push Day"
-                    className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-emerald-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-slate-400 mb-2">Description</label>
-                  <input
-                    type="text"
-                    value={newDescription}
-                    onChange={(e) => setNewDescription(e.target.value)}
-                    placeholder="Chest, shoulders, triceps..."
-                    className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-emerald-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-slate-400 mb-2">Est. duration (min)</label>
-                  <input
-                    type="number"
-                    value={newDuration}
-                    onChange={(e) => setNewDuration(e.target.value)}
-                    placeholder="60"
-                    className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-emerald-500"
-                  />
-                </div>
-              </div>
-              <button
-                onClick={handleCreateWorkout}
-                className="w-full py-3 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-black font-medium transition-all"
-              >
-                Create Workout
-              </button>
-            </div>
-
-            <div className="max-w-4xl mx-auto mb-8">
-              <h2 className="text-2xl font-bold mb-4">All Workouts</h2>
+            {/* Workout List */}
+            <div className="max-w-4xl mx-auto mb-24">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {workouts.map((w, index) => (
                   <div
@@ -977,8 +966,9 @@ function App() {
                       if (draggedWorkoutIndex !== null) handleMoveWorkout(draggedWorkoutIndex, index);
                       setDraggedWorkoutIndex(null);
                     }}
-                    className={`rounded-xl border transition-all cursor-move ${index === 0 ? "border-emerald-500/50 bg-emerald-950/10" : "border-slate-800 bg-slate-900 hover:border-slate-700"
-                      }`}
+                    className={`rounded-xl border transition-all cursor-move ${
+                      index === 0 ? "border-emerald-500/50 bg-emerald-950/10" : "border-slate-800 bg-slate-900 hover:border-slate-700"
+                    }`}
                   >
                     <WorkoutCard
                       id={w.id}
@@ -994,6 +984,15 @@ function App() {
                   </div>
                 ))}
               </div>
+
+              {/* ADD WORKOUT BUTTON - UNTEN */}
+              <button
+                onClick={handleQuickCreateWorkout}
+                className="w-full mt-6 py-6 rounded-xl border-2 border-dashed border-emerald-500/30 hover:border-emerald-500 bg-emerald-950/10 hover:bg-emerald-950/20 text-emerald-400 hover:text-emerald-300 font-bold text-lg transition-all flex items-center justify-center gap-3"
+              >
+                <span className="text-2xl">+</span>
+                <span>Create New Workout</span>
+              </button>
             </div>
           </>
         )}
