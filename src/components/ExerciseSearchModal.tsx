@@ -1,14 +1,13 @@
 import { useState } from 'react';
+
 import type { Exercise } from '../App';
 
 interface ExerciseSearchModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSelectExercise: (exerciseId: string) => void; // ✏️ GEÄNDERT: Wird für Toggle verwendet
+  onSelectExercise: (exerciseId: string) => void;
   allExercises: Exercise[];
   muscleGroups: readonly string[];
-  selectedExerciseIds?: string[]; // 🆕 NEU: Optional - für Mehrfachauswahl
-  multiSelect?: boolean; // 🆕 NEU: Aktiviert Mehrfachauswahl-Modus
 }
 
 export function ExerciseSearchModal({
@@ -17,8 +16,6 @@ export function ExerciseSearchModal({
   onSelectExercise,
   allExercises,
   muscleGroups,
-  selectedExerciseIds = [], // 🆕 NEU
-  multiSelect = false, // 🆕 NEU
 }: ExerciseSearchModalProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterMuscle, setFilterMuscle] = useState('all');
@@ -28,72 +25,48 @@ export function ExerciseSearchModal({
   const filteredExercises = allExercises.filter((ex) => {
     if (filterMuscle !== 'all' && ex.muscleGroup !== filterMuscle) return false;
     if (!searchQuery.trim()) return true;
-
     const q = searchQuery.toLowerCase();
     return ex.name.toLowerCase().includes(q) || ex.muscleGroup.toLowerCase().includes(q);
   });
 
   const handleSelect = (exerciseId: string) => {
     onSelectExercise(exerciseId);
-
-    // ✏️ GEÄNDERT: Nur schließen wenn nicht im Multi-Select Modus
-    if (!multiSelect) {
-      setSearchQuery('');
-      setFilterMuscle('all');
-      onClose();
-    }
-  };
-
-  // 🆕 NEU: Check ob Exercise ausgewählt ist
-  const isSelected = (exerciseId: string) => {
-    return selectedExerciseIds.includes(exerciseId);
+    setSearchQuery('');
+    setFilterMuscle('all');
+    onClose();
   };
 
   return (
-    <div 
+    <div
       className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
       onClick={onClose}
     >
       <div
-        className="bg-slate-900 border border-slate-800 rounded-xl max-w-3xl w-full max-h-[85vh] overflow-hidden flex flex-col"
+        className="bg-slate-900 border border-slate-800 rounded-xl p-6 max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="p-6 border-b border-slate-800">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-2xl font-bold">
-              {multiSelect ? 'Select Exercises' : 'Add Exercise'}
-            </h2>
-            <button
-              onClick={onClose}
-              className="text-slate-400 hover:text-white transition-colors"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-bold">Add Exercise</h2>
+          <button
+            onClick={onClose}
+            className="text-slate-400 hover:text-white text-xl"
+          >
+            ✕
+          </button>
+        </div>
 
-          {/* 🆕 NEU: Selection Counter */}
-          {multiSelect && selectedExerciseIds.length > 0 && (
-            <div className="mb-4 p-3 bg-emerald-900/20 border border-emerald-500/50 rounded-lg">
-              <p className="text-sm text-emerald-400 font-medium">
-                {selectedExerciseIds.length} exercise{selectedExerciseIds.length !== 1 ? 's' : ''} selected
-              </p>
-            </div>
-          )}
-
-          {/* Search & Filter */}
+        {/* Search & Filter */}
+        <div className="space-y-3 mb-4">
           <input
             type="text"
-            placeholder="Search by name or muscle group..."
+            placeholder="Search exercises..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-emerald-500 mb-3"
+            className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-emerald-500"
             autoFocus
           />
 
-          {/* Muscle Filter */}
           <div className="flex flex-wrap gap-2">
             <button
               onClick={() => setFilterMuscle('all')}
@@ -121,13 +94,13 @@ export function ExerciseSearchModal({
           </div>
         </div>
 
-        {/* Exercise List */}
+        {/* Exercise Count */}
         <div className="text-xs text-slate-400 mb-2">
           {filteredExercises.length} exercise{filteredExercises.length !== 1 ? 's' : ''}
         </div>
 
-        {/* FIXED: Scrollable Container */}
-        <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2">
+        {/* FIXED: Scrollable Exercise List */}
+        <div className="flex-1 overflow-y-auto space-y-2 pr-2">
           {filteredExercises.map((ex) => (
             <button
               key={ex.id}
@@ -149,25 +122,13 @@ export function ExerciseSearchModal({
               </div>
             </button>
           ))}
-          
+
           {filteredExercises.length === 0 && (
             <div className="text-center py-8 text-slate-500">
               No exercises found. Try a different search term.
             </div>
           )}
-        </div> 
-
-        {/* 🆕 NEU: Footer mit Done Button für Multi-Select */}
-        {multiSelect && selectedExerciseIds.length > 0 && (
-          <div className="p-4 border-t border-slate-800">
-            <button
-              onClick={onClose}
-              className="w-full py-3 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-black font-medium transition-all"
-            >
-              Done - {selectedExerciseIds.length} Selected
-            </button>
-          </div>
-        )}
+        </div>
       </div>
     </div>
   );
