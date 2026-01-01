@@ -357,6 +357,35 @@ function App() {
     }
   }, [user]);
 
+  // Save advanced features to localStorage
+  useEffect(() => {
+    const settings = {
+      showRPE,
+      show1RM,
+      showPlateCalculator,
+      autoStartRest,
+      customRestSeconds
+    };
+    localStorage.setItem('workoutSettings', JSON.stringify(settings));
+  }, [showRPE, show1RM, showPlateCalculator, autoStartRest, customRestSeconds]);
+
+  // Load advanced features from localStorage on mount
+  useEffect(() => {
+    const savedSettings = localStorage.getItem('workoutSettings');
+    if (savedSettings) {
+      try {
+        const settings = JSON.parse(savedSettings);
+        if (settings.showRPE !== undefined) setShowRPE(settings.showRPE);
+        if (settings.show1RM !== undefined) setShow1RM(settings.show1RM);
+        if (settings.showPlateCalculator !== undefined) setShowPlateCalculator(settings.showPlateCalculator);
+        if (settings.autoStartRest !== undefined) setAutoStartRest(settings.autoStartRest);
+        if (settings.customRestSeconds !== undefined) setCustomRestSeconds(settings.customRestSeconds);
+      } catch (err) {
+        console.error('Error loading workout settings:', err);
+      }
+    }
+  }, []);
+
   // --- Logic Methods ---
 
   const saveWorkoutToDb = async (workout: Workout) => {
@@ -1198,6 +1227,9 @@ function App() {
                     ));
                   }}
                   isDeload={isDeload}
+                  showRPE={showRPE}
+                  show1RM={show1RM}
+                  showPlateCalculator={showPlateCalculator}
                 />
                 
                 <div className="max-w-4xl mx-auto mt-4 flex gap-3">

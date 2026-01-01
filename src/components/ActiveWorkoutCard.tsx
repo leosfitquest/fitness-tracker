@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { SetEntryRow } from "./SetEntryRow";
 
 interface ActiveSet {
   setNumber: number;
@@ -19,6 +20,10 @@ interface ActiveWorkoutCardProps {
   onStartRest: (seconds: number) => void;
   onNoteChange: (note: string) => void;
   isDeload?: boolean;
+  // NEW: Feature Toggles
+  showRPE?: boolean;
+  show1RM?: boolean;
+  showPlateCalculator?: boolean;
 }
 
 const getSetClasses = (set: ActiveSet, progressColor: 'emerald' | 'red' | 'gray') => {
@@ -46,6 +51,9 @@ export function ActiveWorkoutCard({
   onStartRest,
   onNoteChange,
   isDeload = false,
+  showRPE = false,
+  show1RM = false,
+  showPlateCalculator = false,
 }: ActiveWorkoutCardProps) {
   const [customRestSeconds, setCustomRestSeconds] = useState(90);
 
@@ -125,110 +133,21 @@ export function ActiveWorkoutCard({
                 </button>
               </div>
 
-              {/* Weight + Reps + RPE Inputs */}
-              <div className="grid grid-cols-3 gap-3 mb-4">
-                {/* Weight Input + Dropdown */}
-                <div className="space-y-2">
-                  <label className="text-xs text-slate-400 font-medium">Weight</label>
-                  <div className="space-y-1">
-                    <input
-                      type="number"
-                      min={40}
-                      max={100}
-                      step={1}
-                      value={set.weight || ""}
-                      onChange={(e) => onSetChange(index, "weight", e.target.value ? Number(e.target.value) : null)}
-                      className="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                      placeholder="80"
-                    />
-                    <select
-                      onChange={(e) => onSetChange(index, "weight", e.target.value ? Number(e.target.value) : null)}
-                      value={set.weight || ""}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-md px-2 py-1.5 text-xs text-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-400 transition-all"
-                    >
-                      <option value="">← Quick</option>
-                      {Array.from({ length: 61 }, (_, i) => 40 + i).map((w) => (
-                        <option key={w} value={w}>
-                          {w}kg
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                {/* Reps Input + Dropdown */}
-                <div className="space-y-2">
-                  <label className="text-xs text-slate-400 font-medium">Reps</label>
-                  <div className="space-y-1">
-                    <input
-                      type="number"
-                      min={4}
-                      max={20}
-                      step={1}
-                      value={set.reps || ""}
-                      onChange={(e) => onSetChange(index, "reps", e.target.value ? Number(e.target.value) : null)}
-                      className="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                      placeholder="8"
-                    />
-                    <select
-                      onChange={(e) => onSetChange(index, "reps", e.target.value ? Number(e.target.value) : null)}
-                      value={set.reps || ""}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-md px-2 py-1.5 text-xs text-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-400 transition-all"
-                    >
-                      <option value="">← Quick</option>
-                      {Array.from({ length: 17 }, (_, i) => 4 + i).map((r) => (
-                        <option key={r} value={r}>
-                          {r}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                {/* NEU: RPE Input + Dropdown */}
-                <div className="space-y-2">
-                  <label className="text-xs text-slate-400 font-medium">RPE</label>
-                  <div className="space-y-1">
-                    <input
-                      type="number"
-                      min={1}
-                      max={10}
-                      step={0.5}
-                      value={set.rpe || ""}
-                      onChange={(e) => onSetChange(index, "rpe", e.target.value ? Number(e.target.value) : null)}
-                      className="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
-                      placeholder="8"
-                    />
-                    <select
-                      onChange={(e) => onSetChange(index, "rpe", e.target.value ? Number(e.target.value) : null)}
-                      value={set.rpe || ""}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-md px-2 py-1.5 text-xs text-slate-400 focus:outline-none focus:ring-1 focus:ring-purple-400 transition-all"
-                    >
-                      <option value="">← Quick</option>
-                      {Array.from({ length: 19 }, (_, i) => 1 + i * 0.5).map((r) => (
-                        <option key={r} value={r}>
-                          {r}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              {/* Progress Indicator */}
-              {set.weight && set.reps && (
-                <div className={`text-xs font-semibold px-3 py-1.5 rounded-full w-fit mx-auto ${
-                  progressColor === 'emerald' 
-                    ? 'bg-emerald-500/20 text-emerald-400 border-2 border-emerald-500/50 shadow-emerald-500/20' 
-                    : progressColor === 'red' 
-                    ? 'bg-red-500/20 text-red-400 border-2 border-red-500/50 shadow-red-500/20'
-                    : 'bg-slate-700/50 text-slate-400 border border-slate-700 shadow-sm'
-                }`}>
-                  {progressColor === 'emerald' && '🎉 NEW PR!'}
-                  {progressColor === 'red' && '📉 Below previous'}
-                  {progressColor === 'gray' && '➖ Same as last'}
-                </div>
-              )}
+              {/* Replace with SetEntryRow */}
+              <SetEntryRow
+                setNumber={set.setNumber}
+                weight={set.weight}
+                reps={set.reps}
+                rpe={set.rpe}
+                completed={set.completed}
+                onWeightChange={(w) => onSetChange(index, "weight", w)}
+                onRepsChange={(r) => onSetChange(index, "reps", r)}
+                onRPEChange={(r) => onSetChange(index, "rpe", r)}
+                onCompletedChange={(c) => onSetChange(index, "completed", c)}
+                showRPE={showRPE}
+                show1RM={show1RM}
+                showPlateCalculator={showPlateCalculator}
+              />
             </div>
           );
         })}
