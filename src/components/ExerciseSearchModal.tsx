@@ -1,5 +1,4 @@
 import { useState } from 'react';
-
 import type { Exercise } from '../App';
 
 interface ExerciseSearchModalProps {
@@ -41,6 +40,7 @@ export function ExerciseSearchModal({
       className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
       onClick={onClose}
     >
+      {/* KRITISCHER FIX: flex flex-col hinzugefügt! */}
       <div
         className="bg-slate-900 border border-slate-800 rounded-xl p-6 max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col"
         onClick={(e) => e.stopPropagation()}
@@ -48,16 +48,13 @@ export function ExerciseSearchModal({
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold">Add Exercise</h2>
-          <button
-            onClick={onClose}
-            className="text-slate-400 hover:text-white text-xl"
-          >
+          <button onClick={onClose} className="text-slate-400 hover:text-white text-xl">
             ✕
           </button>
         </div>
 
-        {/* Search & Filter */}
-        <div className="space-y-3 mb-4">
+        {/* Search Input */}
+        <div className="mb-3">
           <input
             type="text"
             placeholder="Search exercises..."
@@ -66,32 +63,33 @@ export function ExerciseSearchModal({
             className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-emerald-500"
             autoFocus
           />
+        </div>
 
-          <div className="flex flex-wrap gap-2">
+        {/* Muscle Group Filters */}
+        <div className="flex flex-wrap gap-2 mb-4">
+          <button
+            onClick={() => setFilterMuscle('all')}
+            className={`px-3 py-1 text-xs rounded-full border transition-all ${
+              filterMuscle === 'all'
+                ? 'border-emerald-500 bg-emerald-900 text-emerald-100'
+                : 'border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700'
+            }`}
+          >
+            All
+          </button>
+          {muscleGroups.map((group) => (
             <button
-              onClick={() => setFilterMuscle('all')}
+              key={group}
+              onClick={() => setFilterMuscle(group)}
               className={`px-3 py-1 text-xs rounded-full border transition-all ${
-                filterMuscle === 'all'
+                filterMuscle === group
                   ? 'border-emerald-500 bg-emerald-900 text-emerald-100'
                   : 'border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700'
               }`}
             >
-              All
+              {group}
             </button>
-            {muscleGroups.map((group) => (
-              <button
-                key={group}
-                onClick={() => setFilterMuscle(group)}
-                className={`px-3 py-1 text-xs rounded-full border transition-all ${
-                  filterMuscle === group
-                    ? 'border-emerald-500 bg-emerald-900 text-emerald-100'
-                    : 'border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700'
-                }`}
-              >
-                {group}
-              </button>
-            ))}
-          </div>
+          ))}
         </div>
 
         {/* Exercise Count */}
@@ -99,7 +97,7 @@ export function ExerciseSearchModal({
           {filteredExercises.length} exercise{filteredExercises.length !== 1 ? 's' : ''}
         </div>
 
-        {/* FIXED: Scrollable Exercise List */}
+        {/* KRITISCHER FIX: flex-1 overflow-y-auto space-y-2 pr-2 hinzugefügt! */}
         <div className="flex-1 overflow-y-auto space-y-2 pr-2">
           {filteredExercises.map((ex) => (
             <button
