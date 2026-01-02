@@ -57,13 +57,48 @@ export function SetEntryRow({
     onRPEChange(validRPE);
   };
 
-  // 1RM Calculation
-  const calculate1RM = (w: number, r: number): number => {
-    if (r === 1) return w;
-    return Math.round(w * (36 / (37 - r)));
-  };
+  // 1RM Calculation mit RPE-Adjustierung
+  const calculate1RM = (w: number, r: number, rpeValue?: number | null): number => {
+    if (r === 1 && (!rpeValue || rpeValue === 10)) return w;
 
-  const estimated1RM = weight && reps ? calculate1RM(weight, reps) : null;
+    // Strength Level Repetition Percentages
+    const repPercentages: Record<number, number> = {
+      1: 1.00,   2: 0.97,   3: 0.94,   4: 0.92,   5: 0.89,
+      6: 0.86,   7: 0.83,   8: 0.81,   9: 0.78,  10: 0.75,
+      11: 0.73, 12: 0.71,  13: 0.70,  14: 0.68,  15: 0.67,
+      16: 0.65, 17: 0.64,  18: 0.63,  19: 0.61,  20: 0.60,
+      21: 0.59, 22: 0.58,  23: 0.57,  24: 0.56,  25: 0.55,
+      26: 0.54, 27: 0.53,  28: 0.52,  29: 0.51,  30: 0.50,
+    };
+
+    // RPE zu RIR Konvertierung
+    const getRepsInReserve = (rpe: number): number => {
+      if (rpe >= 10) return 0;
+      if (rpe >= 9.5) return 0.5;
+      if (rpe >= 9) return 1;
+      if (rpe >= 8.5) return 1.5;
+      if (rpe >= 8) return 2;
+      if (rpe >= 7.5) return 2.5;
+      if (rpe >= 7) return 3;
+      if (rpe >= 6.5) return 3.5;
+      if (rpe >= 6) return 4;
+      return 5;
+    };
+
+    // Adjustiere Reps basierend auf RPE
+    let adjustedReps = r;
+    if (rpeValue && rpeValue < 10) {
+      const rir = getRepsInReserve(rpeValue);
+      adjustedReps = Math.round(r + rir);
+    }
+
+    // Verwende Prozentsatz aus Tabelle
+    const percentage = repPercentages[adjustedReps] || (0.50 - (adjustedReps - 30) * 0.01);
+
+    return Math.round(w / percentage);
+  }; 
+
+  const estimated1RM = weight && reps ? calculate1RM(weight, reps, rpe) : null;
 
   // Plate Calculator
   const calculatePlates = (totalWeight: number): string => {
