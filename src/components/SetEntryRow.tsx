@@ -185,43 +185,54 @@ export function SetEntryRow({
         </div>
       </div>
 
-      {/* RPE Picker - Erscheint bei Klick */}
+      {/* RPE Picker - Mit 0.5 Schritten */}
       {showRPE && showRPEPicker && (
         <div className="px-2 pb-2">
-          <div className="bg-slate-800 rounded-lg p-2">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-slate-300 font-bold">Select RPE (1-10)</span>
+          <div className="bg-slate-800 rounded-lg p-3 border border-slate-700">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm text-slate-300 font-bold">Select RPE</span>
               <button
                 onClick={() => {
                   onRPEChange(null);
                   setShowRPEPicker(false);
                 }}
-                className="text-xs text-red-400 hover:text-red-300"
+                className="text-xs text-red-400 hover:text-red-300 px-2 py-1 rounded hover:bg-red-500/10"
               >
                 Clear
               </button>
             </div>
-            <div className="grid grid-cols-10 gap-1">
-              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((rpeValue) => (
+            
+            {/* RPE Grid mit 0.5 Schritten */}
+            <div className="grid grid-cols-5 gap-1.5">
+              {[5, 5.5, 6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10].map((rpeValue) => (
                 <button
                   key={rpeValue}
                   onClick={() => {
                     onRPEChange(rpeValue);
                     setShowRPEPicker(false);
                   }}
-                  className={`py-2 text-xs font-bold rounded transition-all ${
+                  className={`py-2.5 text-sm font-bold rounded-lg transition-all ${
                     rpe === rpeValue
-                      ? 'bg-emerald-500 text-black'
-                      : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                      ? 'bg-emerald-500 text-black shadow-lg scale-105'
+                      : 'bg-slate-700 text-slate-300 hover:bg-slate-600 hover:scale-105'
                   }`}
                 >
                   {rpeValue}
                 </button>
               ))}
             </div>
-            <div className="mt-2 text-xs text-slate-400">
-              {rpe && rpe < 10 && (
-                <span>RPE {rpe} ≈ {Math.round(10 - rpe)} reps in reserve</span>
+            
+            {/* RIR Indicator */}
+            <div className="mt-3 text-xs text-center text-slate-400 bg-slate-900 rounded py-2">
+              {rpe && rpe < 10 ? (
+                <>
+                  <span className="text-emerald-400 font-bold">RPE {rpe}</span>
+                  {' ≈ '}
+                  <span className="text-amber-400 font-bold">{(10 - rpe).toFixed(1)} RIR</span>
+                  {' (Reps in Reserve)'}
+                </>
+              ) : (
+                'Select your Rate of Perceived Exertion'
               )}
             </div>
           </div>

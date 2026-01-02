@@ -1,14 +1,7 @@
-import { useState } from "react";
-import { SetEntryRow } from "./SetEntryRow";
-import type { Exercise } from "../App";
-
-interface ActiveSet {
-  setNumber: number;
-  weight: number | null;
-  reps: number | null;
-  rpe: number | null; // NEU: RPE hinzugefügt
-  completed: boolean;
-}
+import { useState } from 'react';
+import { SetEntryRow } from './SetEntryRow';
+import { ExerciseInstructionsModal } from './ExerciseInstructionsModal';
+import type { ActiveSet, Exercise } from '../App';
 
 interface ActiveWorkoutCardProps {
   exerciseId: string;
@@ -20,26 +13,11 @@ interface ActiveWorkoutCardProps {
   onAddSet: () => void;
   onStartRest: (seconds: number) => void;
   onNoteChange: (note: string) => void;
-  isDeload?: boolean;
-  // NEW: Feature Toggles
-  showRPE?: boolean;
-  show1RM?: boolean;
-  showPlateCalculator?: boolean;
-  allExercises?: Exercise[];  // NEU
-} 
-
-const getSetClasses = (set: ActiveSet, progressColor: 'emerald' | 'red' | 'gray') => {
-  if (set.completed) {
-    switch (progressColor) {
-      case 'emerald':
-        return 'border-emerald-500 bg-emerald-950/30';
-      case 'red':
-        return 'border-red-500 bg-red-950/30';
-      case 'gray':
-        return 'border-gray-500 bg-gray-950/30';
-    }
-  }
-  return 'border-slate-700 bg-slate-900/50 hover:bg-slate-800';
+  isDeload: boolean;
+  showRPE: boolean;
+  show1RM: boolean;
+  showPlateCalculator: boolean;
+  allExercises: Exercise[];
 }
 
 export function ActiveWorkoutCard({
@@ -47,221 +25,183 @@ export function ActiveWorkoutCard({
   exerciseName,
   muscleGroup,
   sets,
-  note = "",
+  note,
   onSetChange,
   onAddSet,
   onStartRest,
   onNoteChange,
-  isDeload = false,
-  showRPE = false,
-  show1RM = false,
-  showPlateCalculator = false,
+  isDeload,
+  showRPE,
+  show1RM,
+  showPlateCalculator,
   allExercises,
 }: ActiveWorkoutCardProps) {
-  const [customRestSeconds, setCustomRestSeconds] = useState(90);
   const [showInstructions, setShowInstructions] = useState(false);
+  const [showNoteInput, setShowNoteInput] = useState(false);
 
-  const getProgressColor = (setIndex: number): 'emerald' | 'red' | 'gray' => {
-    const currentSet = sets[setIndex];
+  const currentExercise = allExercises.find(ex => ex.id === exerciseId);
 
-    if (!currentSet.weight || !currentSet.reps) {
-      return "gray";
+  const handleCompleteSet = (index: number) => {
+    const set = sets[index];
+    if (!set.completed && set.weight && set.reps) {
+      onSetChange(index, 'completed', true);
+      // Auto-start rest timer
+      onStartRest(90); // Default 90s
     }
-
-    if (setIndex === 0) {
-      return "gray";
-    }
-
-    const prev = sets[setIndex - 1];
-    if (!prev.weight || !prev.reps) {
-      return "gray";
-    }
-
-    if (
-      currentSet.weight > prev.weight ||
-      (currentSet.weight === prev.weight && currentSet.reps > prev.reps)
-    ) {
-      return "emerald";
-    }
-
-    if (
-      currentSet.weight < prev.weight ||
-      (currentSet.weight === prev.weight && currentSet.reps < prev.reps)
-    ) {
-      return "red";
-    }
-
-    return "gray";
   };
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
-      {/* Exercise Header */}
-      <div className="flex items-start gap-4 mb-3">
-        {/* Exercise Image - GRÖßER */}
-        {allExercises?.find(ex => ex.id === exerciseId)?.imageUrl && (
-          <img
-            src={allExercises.find(ex => ex.id === exerciseId)!.imageUrl}
-            alt={exerciseName}
-            className="w-20 h-20 object-cover rounded-lg border-2 border-slate-700"
-          />
-        )}
-        
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-bold text-white truncate">{exerciseName}</h2>
-              <p className="text-sm text-slate-400 uppercase">{muscleGroup}</p>
+    <>
+      <div className="bg-gradient-to-br from-slate-900 to-slate-950 border-2 border-slate-800 rounded-2xl overflow-hidden shadow-2xl">
+        {/* Header mit großem Bild */}
+        <div className="relative h-32 bg-gradient-to-br from-slate-800 to-slate-900 overflow-hidden">
+          {currentExercise?.imageUrl && (
+            <>
+              <img
+                src={currentExercise.imageUrl}
+                alt={exerciseName}
+                className="absolute inset-0 w-full h-full object-cover opacity-30"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/50 to-transparent" />
+            </>
+          )}
+          
+          {/* Exercise Info Overlay */}
+          <div className="relative h-full flex items-end p-4">
+            <div className="flex-1">
+              <h2 className="text-2xl font-bold text-white mb-1">{exerciseName}</h2>
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-0.5 bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 rounded-full text-xs font-bold uppercase">
+                  {muscleGroup}
+                </span>
+                {isDeload && (
+                  <span className="px-2 py-0.5 bg-amber-500/20 border border-amber-500/50 text-amber-300 rounded-full text-xs font-bold">
+                    DELOAD
+                  </span>
+                )}
+              </div>
             </div>
-            
+
             {/* Info Button */}
             <button
-              onClick={() => {
-                const ex = allExercises?.find(e => e.id === exerciseId);
-                if (ex && ex.instructions) {
-                  alert(`Instructions:\n\n${ex.instructions.join('\n')}`);
-                }
-              }}
-              className="p-2 text-slate-400 hover:text-emerald-400 hover:bg-slate-800 rounded-lg transition-all"
-              title="Exercise Instructions"
+              onClick={() => setShowInstructions(true)}
+              className="p-3 bg-black/30 hover:bg-black/50 backdrop-blur-sm rounded-xl text-white transition-all hover:scale-105"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </button>
           </div>
         </div>
-      </div>
 
-      {/* Exercise Instructions Modal */}
-      {showInstructions && (
-        <div className="mb-4 p-4 bg-blue-950/20 border border-blue-900/50 rounded-lg">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-bold text-blue-400">📋 Exercise Instructions</h3>
-            <button
-              onClick={() => setShowInstructions(false)}
-              className="text-slate-400 hover:text-white text-sm"
-            >
-              ✕
-            </button>
+
+
+        {/* Sets */}
+        <div className="p-4 space-y-2">
+          {/* Column Headers */}
+          <div 
+            className="grid gap-2 px-2 pb-2 text-xs font-bold text-slate-400 uppercase"
+            style={{ gridTemplateColumns: showRPE ? '40px 1fr 1fr 50px 40px' : '40px 1fr 1fr 40px' }}
+          >
+            <div className="text-center">Set</div>
+            <div>Weight</div>
+            <div>Reps</div>
+            {showRPE && <div className="text-center">RPE</div>}
+            <div className="text-center">✓</div>
           </div>
 
-          {/* Instructions from exercise data */}
-          {(() => {
-            const exercise = allExercises?.find((ex: Exercise) => ex.id === exerciseId);
-            if (!exercise) return <p className="text-xs text-slate-400">No instructions available.</p>;
+          {sets.map((set, index) => (
+            <SetEntryRow
+              key={index}
+              setNumber={set.setNumber}
+              weight={set.weight}
+              reps={set.reps}
+              rpe={set.rpe}
+              completed={set.completed}
+              onWeightChange={(weight) => onSetChange(index, 'weight', weight)}
+              onRepsChange={(reps) => onSetChange(index, 'reps', reps)}
+              onRPEChange={(rpe) => onSetChange(index, 'rpe', rpe)}
+              onCompletedChange={(completed) => {
+                onSetChange(index, 'completed', completed);
+                if (completed && set.weight && set.reps) {
+                  handleCompleteSet(index);
+                }
+              }}
+              showRPE={showRPE}
+              show1RM={show1RM}
+              showPlateCalculator={showPlateCalculator}
+            />
+          ))}
 
-            return (
-              <div className="space-y-2">
-                {exercise.instructions && exercise.instructions.length > 0 ? (
-                  <ol className="list-decimal list-inside space-y-1 text-sm text-slate-300">
-                    {exercise.instructions.map((instruction: string, i: number) => (
-                      <li key={i}>{instruction}</li>
-                    ))}
-                  </ol>
-                ) : (
-                  <p className="text-xs text-slate-400">No instructions available.</p>
-                )}
-
-                {/* Equipment & Muscles */}
-                <div className="mt-3 pt-3 border-t border-blue-900/30 grid grid-cols-2 gap-3 text-xs">
-                  {exercise.equipment && (
-                    <div>
-                      <span className="text-slate-500">Equipment:</span>
-                      <span className="ml-2 text-slate-300">{exercise.equipment}</span>
-                    </div>
-                  )}
-                  {exercise.primaryMuscles && exercise.primaryMuscles.length > 0 && (
-                    <div>
-                      <span className="text-slate-500">Primary:</span>
-                      <span className="ml-2 text-emerald-400">{exercise.primaryMuscles.join(', ')}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })()}
+          {/* Add Set Button */}
+          <button
+            onClick={onAddSet}
+            className="w-full py-3 mt-2 rounded-lg border-2 border-dashed border-slate-700 hover:border-emerald-500 text-slate-400 hover:text-emerald-400 font-medium transition-all hover:bg-slate-800/50"
+          >
+            + Add Set
+          </button>
         </div>
-      )}
 
-      {/* KOMMENTAR SEKTION - NACH OBEN VERSCHOBEN */}
-      <div className="mb-4">
-        <label className="block text-xs text-slate-400 mb-2">Exercise Notes</label>
-        <textarea
-          value={note}
-          onChange={(e) => onNoteChange(e.target.value)}
-          placeholder="Add notes for this exercise..."
-          className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-emerald-500 resize-none"
-          rows={2}
-        />
-      </div> 
+        {/* Notes Section */}
+        <div className="px-4 pb-4">
+          {showNoteInput ? (
+            <div className="space-y-2">
+              <textarea
+                value={note || ''}
+                onChange={(e) => onNoteChange(e.target.value)}
+                placeholder="Add notes about this exercise..."
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-300 placeholder-slate-500 outline-none focus:border-emerald-500 resize-none"
+                rows={3}
+              />
+              <button
+                onClick={() => setShowNoteInput(false)}
+                className="text-xs text-slate-400 hover:text-slate-300"
+              >
+                Hide notes
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowNoteInput(true)}
+              className="w-full py-2 text-sm text-slate-400 hover:text-emerald-400 transition-all"
+            >
+              {note ? '📝 Edit notes' : '+ Add notes'}
+            </button>
+          )}
+        </div>
 
-      {/* SETS HEADER */}
-      <div
-        className="grid gap-2 mb-2 text-xs text-slate-400 font-bold"
-        style={{
-          gridTemplateColumns: showRPE 
-            ? "40px 1fr 1fr 60px 50px" 
-            : "40px 1fr 1fr 50px"
-        }}
-      >
-        <div className="text-center">SET</div>
-        <div>WEIGHT</div>
-        <div>REPS</div>
-        {showRPE && <div>RPE</div>}
-        <div className="text-center">✓</div>
+        {/* Stats Footer */}
+        <div className="px-4 py-3 bg-slate-950/50 border-t border-slate-800 flex justify-between text-sm">
+          <div>
+            <span className="text-slate-400">Total Volume:</span>
+            <span className="ml-2 text-emerald-400 font-bold">
+              {sets.reduce((sum, set) => 
+                set.completed && set.weight && set.reps 
+                  ? sum + (set.weight * set.reps) 
+                  : sum, 0
+              )}kg
+            </span>
+          </div>
+          <div>
+            <span className="text-slate-400">Completed:</span>
+            <span className="ml-2 text-white font-bold">
+              {sets.filter(s => s.completed).length}/{sets.length}
+            </span>
+          </div>
+        </div>
       </div>
 
-      {/* SETS LIST */}
-      <div className="space-y-2 mb-4">
-        {sets.map((set, index) => (
-          <SetEntryRow
-            key={index}
-            setNumber={set.setNumber}
-            weight={set.weight}
-            reps={set.reps}
-            rpe={set.rpe}
-            completed={set.completed}
-            onWeightChange={(w) => onSetChange(index, "weight", w)}
-            onRepsChange={(r) => onSetChange(index, "reps", r)}
-            onRPEChange={(rpe) => onSetChange(index, "rpe", rpe)}
-            onCompletedChange={(c) => onSetChange(index, "completed", c)}
-            showRPE={showRPE}
-            show1RM={show1RM}
-            showPlateCalculator={showPlateCalculator}
-          />
-        ))}
-      </div>
-
-      {/* ADD SET BUTTON */}
-      <button
-        onClick={onAddSet}
-        className="w-full py-2 rounded-lg border border-dashed border-slate-700 hover:border-emerald-500 text-slate-400 hover:text-emerald-400 transition-all text-sm"
-      >
-        + Add Set
-      </button>
-
-      {/* REST TIMER BUTTONS */}
-      <div className="grid grid-cols-3 gap-2 mt-4">
-        <button
-          onClick={() => onStartRest(60)}
-          className="py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-sm"
-        >
-          1 min
-        </button>
-        <button
-          onClick={() => onStartRest(90)}
-          className="py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-sm"
-        >
-          1.5 min
-        </button>
-        <button
-          onClick={() => onStartRest(customRestSeconds)}
-          className="py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-sm"
-        >
-          Custom
-        </button>
-      </div>
-    </div>
+      {/* Instructions Modal */}
+      <ExerciseInstructionsModal
+        isOpen={showInstructions}
+        onClose={() => setShowInstructions(false)}
+        exerciseName={exerciseName}
+        instructions={currentExercise?.instructions}
+        imageUrl={currentExercise?.imageUrl}
+        equipment={currentExercise?.equipment}
+        primaryMuscles={currentExercise?.primaryMuscles}
+        secondaryMuscles={currentExercise?.secondaryMuscles}
+      />
+    </>
   );
 }
