@@ -97,7 +97,7 @@ export function ActiveWorkoutCard({
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
       {/* Exercise Name */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-3">
         <div className="flex-1">
           <h2 className="text-xl font-bold">{exerciseName}</h2>
           <p className="text-xs text-slate-400 uppercase">{muscleGroup}</p>
