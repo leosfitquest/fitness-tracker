@@ -28,10 +28,6 @@ export function ExerciseSearchModal({
     return ex.name.toLowerCase().includes(q) || ex.muscleGroup.toLowerCase().includes(q);
   });
 
-  // 🔍 DEBUG: Console log
-  console.log('🔍 DEBUG - Total allExercises:', allExercises.length);
-  console.log('🔍 DEBUG - Filtered exercises:', filteredExercises.length);
-  console.log('🔍 DEBUG - First 3 exercises:', filteredExercises.slice(0, 3).map(ex => ex.name));
 
   const handleSelect = (exerciseId: string) => {
     onSelectExercise(exerciseId);
@@ -48,7 +44,6 @@ export function ExerciseSearchModal({
       <div
         className="bg-slate-900 border border-slate-800 rounded-xl p-6 max-w-2xl w-full max-h-[80vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
-        style={{ border: '2px solid red' }} // 🔍 DEBUG Border
       >
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
@@ -105,17 +100,8 @@ export function ExerciseSearchModal({
           {filteredExercises.length} exercise{filteredExercises.length !== 1 ? 's' : ''}
         </div>
 
-        {/* Exercise List - WITH DEBUG STYLING */}
-        <div 
-          className="flex-1 overflow-y-auto space-y-2 pr-2"
-          style={{ 
-            border: '2px solid yellow', // 🔍 DEBUG Border
-            minHeight: '200px',
-            maxHeight: 'calc(80vh - 300px)'
-          }}
-        >
-          <p className="text-yellow-400 text-xs mb-2">🔍 DEBUG: Container sichtbar? Scroll funktioniert?</p>
-          
+        {/* Exercise List */}
+        <div className="flex-1 overflow-y-auto space-y-2 pr-2">
           {filteredExercises.map((ex) => (
             <button
               key={ex.id}

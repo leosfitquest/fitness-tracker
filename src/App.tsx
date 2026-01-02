@@ -12,6 +12,7 @@ import { ExerciseSearchModal } from "./components/ExerciseSearchModal";
 import { SessionDetailModal } from "./components/SessionDetailModal";
 import { BottomNav } from "./components/BottomNav";
 import { AccountPage } from "./components/AccountPage";
+import { ExerciseInstructionsModal } from './components/ExerciseInstructionsModal';
 
 // Data
 import { RAW_EXERCISES } from "./exercises-data";
