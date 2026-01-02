@@ -28,6 +28,11 @@ export function ExerciseSearchModal({
     return ex.name.toLowerCase().includes(q) || ex.muscleGroup.toLowerCase().includes(q);
   });
 
+  // 🔍 DEBUG: Console log
+  console.log('🔍 DEBUG - Total allExercises:', allExercises.length);
+  console.log('🔍 DEBUG - Filtered exercises:', filteredExercises.length);
+  console.log('🔍 DEBUG - First 3 exercises:', filteredExercises.slice(0, 3).map(ex => ex.name));
+
   const handleSelect = (exerciseId: string) => {
     onSelectExercise(exerciseId);
     setSearchQuery('');
@@ -40,20 +45,23 @@ export function ExerciseSearchModal({
       className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
       onClick={onClose}
     >
-      {/* KRITISCHER FIX: flex flex-col hinzugefügt! */}
       <div
-        className="bg-slate-900 border border-slate-800 rounded-xl p-6 max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col"
+        className="bg-slate-900 border border-slate-800 rounded-xl p-6 max-w-2xl w-full max-h-[80vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
+        style={{ border: '2px solid red' }} // 🔍 DEBUG Border
       >
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold">Add Exercise</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-white text-xl">
+          <button
+            onClick={onClose}
+            className="text-slate-400 hover:text-white text-xl"
+          >
             ✕
           </button>
         </div>
 
-        {/* Search Input */}
+        {/* Search & Filter */}
         <div className="mb-3">
           <input
             type="text"
@@ -97,8 +105,17 @@ export function ExerciseSearchModal({
           {filteredExercises.length} exercise{filteredExercises.length !== 1 ? 's' : ''}
         </div>
 
-        {/* KRITISCHER FIX: flex-1 overflow-y-auto space-y-2 pr-2 hinzugefügt! */}
-        <div className="flex-1 overflow-y-auto space-y-2 pr-2">
+        {/* Exercise List - WITH DEBUG STYLING */}
+        <div 
+          className="flex-1 overflow-y-auto space-y-2 pr-2"
+          style={{ 
+            border: '2px solid yellow', // 🔍 DEBUG Border
+            minHeight: '200px',
+            maxHeight: 'calc(80vh - 300px)'
+          }}
+        >
+          <p className="text-yellow-400 text-xs mb-2">🔍 DEBUG: Container sichtbar? Scroll funktioniert?</p>
+          
           {filteredExercises.map((ex) => (
             <button
               key={ex.id}
