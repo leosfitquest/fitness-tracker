@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { SetEntryRow } from "./SetEntryRow";
+import type { Exercise } from "../App";
 
 interface ActiveSet {
   setNumber: number;
@@ -24,7 +25,8 @@ interface ActiveWorkoutCardProps {
   showRPE?: boolean;
   show1RM?: boolean;
   showPlateCalculator?: boolean;
-}
+  allExercises?: Exercise[];  // NEU
+} 
 
 const getSetClasses = (set: ActiveSet, progressColor: 'emerald' | 'red' | 'gray') => {
   if (set.completed) {
@@ -54,8 +56,10 @@ export function ActiveWorkoutCard({
   showRPE = false,
   show1RM = false,
   showPlateCalculator = false,
+  allExercises,
 }: ActiveWorkoutCardProps) {
   const [customRestSeconds, setCustomRestSeconds] = useState(90);
+  const [showInstructions, setShowInstructions] = useState(false);
 
   const getProgressColor = (setIndex: number): 'emerald' | 'red' | 'gray' => {
     const currentSet = sets[setIndex];
@@ -94,11 +98,69 @@ export function ActiveWorkoutCard({
     <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
       {/* Exercise Name */}
       <div className="flex items-center justify-between mb-4">
-        <div>
+        <div className="flex-1">
           <h2 className="text-xl font-bold">{exerciseName}</h2>
           <p className="text-xs text-slate-400 uppercase">{muscleGroup}</p>
         </div>
+        <button
+          onClick={() => setShowInstructions(!showInstructions)}
+          className="ml-4 px-3 py-2 rounded-lg bg-blue-900/30 border border-blue-800 hover:bg-blue-900/50 text-blue-400 hover:text-blue-300 transition-all text-sm font-medium"
+          title="Show exercise instructions"
+        >
+          ℹ️ Info
+        </button>
       </div>
+
+      {/* Exercise Instructions Modal */}
+      {showInstructions && (
+        <div className="mb-4 p-4 bg-blue-950/20 border border-blue-900/50 rounded-lg">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-bold text-blue-400">📋 Exercise Instructions</h3>
+            <button
+              onClick={() => setShowInstructions(false)}
+              className="text-slate-400 hover:text-white text-sm"
+            >
+              ✕
+            </button>
+          </div>
+
+          {/* Instructions from exercise data */}
+          {(() => {
+            const exercise = allExercises?.find((ex: Exercise) => ex.id === exerciseId);
+            if (!exercise) return <p className="text-xs text-slate-400">No instructions available.</p>;
+
+            return (
+              <div className="space-y-2">
+                {exercise.instructions && exercise.instructions.length > 0 ? (
+                  <ol className="list-decimal list-inside space-y-1 text-sm text-slate-300">
+                    {exercise.instructions.map((instruction: string, i: number) => (
+                      <li key={i}>{instruction}</li>
+                    ))}
+                  </ol>
+                ) : (
+                  <p className="text-xs text-slate-400">No instructions available.</p>
+                )}
+
+                {/* Equipment & Muscles */}
+                <div className="mt-3 pt-3 border-t border-blue-900/30 grid grid-cols-2 gap-3 text-xs">
+                  {exercise.equipment && (
+                    <div>
+                      <span className="text-slate-500">Equipment:</span>
+                      <span className="ml-2 text-slate-300">{exercise.equipment}</span>
+                    </div>
+                  )}
+                  {exercise.primaryMuscles && exercise.primaryMuscles.length > 0 && (
+                    <div>
+                      <span className="text-slate-500">Primary:</span>
+                      <span className="ml-2 text-emerald-400">{exercise.primaryMuscles.join(', ')}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+        </div>
+      )}
 
       {/* KOMMENTAR SEKTION - NACH OBEN VERSCHOBEN */}
       <div className="mb-4">
@@ -110,7 +172,7 @@ export function ActiveWorkoutCard({
           className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-emerald-500 resize-none"
           rows={2}
         />
-      </div>
+      </div> 
 
       {/* SETS HEADER */}
       <div

@@ -1230,6 +1230,7 @@ function App() {
                   showRPE={showRPE}
                   show1RM={show1RM}
                   showPlateCalculator={showPlateCalculator}
+                  allExercises={ALL_EXERCISES}
                 />
                 
                 <div className="max-w-4xl mx-auto mt-4 flex gap-3">
