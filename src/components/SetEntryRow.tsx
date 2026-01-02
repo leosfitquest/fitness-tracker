@@ -39,14 +39,15 @@ export function SetEntryRow({
 }: SetEntryRowProps) {
   const [isFocused, setIsFocused] = useState(false);
   const [showPlates, setShowPlates] = useState(false);
+  const [showRPEPicker, setShowRPEPicker] = useState(false); // NEU: RPE Picker State
 
   const handleWeightChange = (value: string) => {
-    const num = value ? null : Number(value);
+    const num = value ? Number(value) : null;
     onWeightChange(Number.isNaN(num) ? null : num);
   };
 
   const handleRepsChange = (value: string) => {
-    const num = value ? null : Number(value);
+    const num = value ? Number(value) : null;
     onRepsChange(Number.isNaN(num) ? null : num);
   };
 
@@ -73,7 +74,9 @@ export function SetEntryRow({
       if (rpe >= 7) return 3;
       if (rpe >= 6.5) return 3.5;
       if (rpe >= 6) return 4;
-      return 5;
+      if (rpe >= 5.5) return 4.5;
+      if (rpe >= 5) return 5;
+      return 6;
     };
     
     let adjustedReps = r;
@@ -123,14 +126,14 @@ export function SetEntryRow({
           : 'bg-slate-900 border-slate-700'
       }`}
     >
-      {/* Main Row - Kompakter */}
-      <div className="grid gap-2 p-2" style={{ gridTemplateColumns: '40px 1fr 1fr 40px' }}>
+      {/* Main Row */}
+      <div className="grid gap-2 p-2" style={{ gridTemplateColumns: showRPE ? '40px 1fr 1fr 50px 40px' : '40px 1fr 1fr 40px' }}>
         {/* Set Number */}
         <div className="flex items-center justify-center">
           <span className="text-slate-400 font-bold text-sm">{setNumber}</span>
         </div>
 
-        {/* Weight Input - Kompakter */}
+        {/* Weight Input */}
         <div className="relative">
           <input
             type="number"
@@ -144,7 +147,7 @@ export function SetEntryRow({
           <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-500">kg</span>
         </div>
 
-        {/* Reps Input - Kompakter */}
+        {/* Reps Input */}
         <div className="relative">
           <input
             type="number"
@@ -157,6 +160,20 @@ export function SetEntryRow({
           />
         </div>
 
+        {/* RPE Toggle Button */}
+        {showRPE && (
+          <button
+            onClick={() => setShowRPEPicker(!showRPEPicker)}
+            className={`px-2 py-1.5 text-xs font-bold rounded transition-all ${
+              rpe
+                ? 'bg-emerald-500 text-black'
+                : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+            }`}
+          >
+            {rpe ? `@${rpe}` : 'RPE'}
+          </button>
+        )}
+
         {/* Checkbox */}
         <div className="flex items-center justify-center">
           <input
@@ -168,24 +185,45 @@ export function SetEntryRow({
         </div>
       </div>
 
-      {/* RPE Buttons - Neue Zeile */}
-      {showRPE && (
+      {/* RPE Picker - Erscheint bei Klick */}
+      {showRPE && showRPEPicker && (
         <div className="px-2 pb-2">
-          <div className="flex items-center gap-1">
-            <span className="text-xs text-slate-400 mr-2">RPE:</span>
-            {[6, 7, 8, 9, 10].map((rpeValue) => (
+          <div className="bg-slate-800 rounded-lg p-2">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs text-slate-300 font-bold">Select RPE (1-10)</span>
               <button
-                key={rpeValue}
-                onClick={() => onRPEChange(rpe === rpeValue ? null : rpeValue)}
-                className={`flex-1 py-1 text-xs rounded transition-all ${
-                  rpe === rpeValue
-                    ? 'bg-emerald-500 text-black font-bold'
-                    : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
-                }`}
+                onClick={() => {
+                  onRPEChange(null);
+                  setShowRPEPicker(false);
+                }}
+                className="text-xs text-red-400 hover:text-red-300"
               >
-                {rpeValue}
+                Clear
               </button>
-            ))}
+            </div>
+            <div className="grid grid-cols-10 gap-1">
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((rpeValue) => (
+                <button
+                  key={rpeValue}
+                  onClick={() => {
+                    onRPEChange(rpeValue);
+                    setShowRPEPicker(false);
+                  }}
+                  className={`py-2 text-xs font-bold rounded transition-all ${
+                    rpe === rpeValue
+                      ? 'bg-emerald-500 text-black'
+                      : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                  }`}
+                >
+                  {rpeValue}
+                </button>
+              ))}
+            </div>
+            <div className="mt-2 text-xs text-slate-400">
+              {rpe && rpe < 10 && (
+                <span>RPE {rpe} ≈ {Math.round(10 - rpe)} reps in reserve</span>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -193,31 +231,25 @@ export function SetEntryRow({
       {/* 1RM Display */}
       {show1RM && estimated1RM && completed && (
         <div className="px-2 pb-2">
-          <div className="px-2 py-1 bg-emerald-950/20 border border-emerald-900/50 rounded text-xs text-emerald-400">
-            <span className="font-bold">Est. 1RM:</span> {estimated1RM}kg
-            {isPersonalRecord && <span className="ml-2 text-orange-400">🔥 NEW PR!</span>}
+          <div className="flex items-center justify-between px-2 py-1 bg-emerald-950/20 border border-emerald-900/50 rounded text-xs">
+            <span className="text-emerald-400">
+              <span className="font-bold">Est. 1RM:</span> {estimated1RM}kg
+              {rpe && rpe < 10 && <span className="text-slate-500 ml-1">(@ RPE {rpe})</span>}
+            </span>
+            {isPersonalRecord && <span className="text-orange-400 font-bold">🔥 PR!</span>}
           </div>
         </div>
       )}
 
       {/* Plate Calculator */}
-      {showPlateCalculator && showPlates && weight && (
-        <div className="px-2 pb-2">
-          <div className="px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-slate-300">
-            <div className="font-bold text-emerald-400 mb-1">Plates per side:</div>
-            {calculatePlates(weight)}
-          </div>
-        </div>
-      )}
-
-      {/* Plate Calculator Toggle */}
       {showPlateCalculator && weight && (
         <div className="px-2 pb-2">
           <button
             onClick={() => setShowPlates(!showPlates)}
-            className="text-xs text-emerald-400 hover:text-emerald-300"
+            className="text-xs text-emerald-400 hover:text-emerald-300 flex items-center gap-1"
           >
-            {showPlates ? '▼ Hide plates' : '▶ Calculate plates'}
+            <span>{showPlates ? '▼' : '▶'}</span>
+            <span>Plates: {calculatePlates(weight)}</span>
           </button>
         </div>
       )}

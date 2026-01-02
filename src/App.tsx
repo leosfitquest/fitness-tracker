@@ -218,6 +218,10 @@ function App() {
   const [showExerciseSearchModal, setShowExerciseSearchModal] = useState(false);
   const [selectedExerciseIds, setSelectedExerciseIds] = useState<string[]>([]);
 
+  // Exercise History Modal
+  const [showExerciseHistory, setShowExerciseHistory] = useState(false);
+  const [historyExerciseId, setHistoryExerciseId] = useState<string | null>(null);
+
   // Active Workout Stats
   const [workoutStartTime, setWorkoutStartTime] = useState<number | null>(null);
   const [workoutDuration, setWorkoutDuration] = useState<number | null>(null);
@@ -891,6 +895,19 @@ function App() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  // Get Exercise History
+  const getExerciseHistory = (exerciseId: string) => {
+    return sessionLogs
+      .filter(log => log.exercises.some(ex => ex.exerciseId === exerciseId))
+      .map(log => ({
+        date: log.startedAt,
+        sets: log.exercises.find(ex => ex.exerciseId === exerciseId)?.sets || [],
+        volume: log.exercises.find(ex => ex.exerciseId === exerciseId)?.volume || 0,
+      }))
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .slice(0, 10); // Last 10 sessions
+  };
+
   if (authLoading) return <div className="min-h-screen bg-black text-white flex items-center justify-center">Loading...</div>;
   if (!user) return <Auth />;
 
@@ -1222,15 +1239,27 @@ function App() {
                           <span className="text-slate-600 text-xl font-bold">○</span>
                         )}
                       </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleRemoveExercise(ex.id);
-                        }}
-                        className="ml-4 mt-2 text-xs text-red-400 hover:text-red-300"
-                      >
-                        Remove
-                      </button>
+                      <div className="ml-4 mt-2 flex items-center gap-2">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setHistoryExerciseId(ex.id);
+                            setShowExerciseHistory(true);
+                          }}
+                          className="text-xs text-blue-400 hover:text-blue-300"
+                        >
+                          📊 History
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRemoveExercise(ex.id);
+                          }}
+                          className="text-xs text-red-400 hover:text-red-300"
+                        >
+                          Remove
+                        </button>
+                      </div>
                     </div>
                   );
                 })}
@@ -1523,6 +1552,60 @@ function App() {
             onDismiss={() => setShowRestTimer(false)}
             autoStart={true}
           />
+        )}
+
+        {/* Exercise History Modal */}
+        {showExerciseHistory && historyExerciseId && (
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={() => setShowExerciseHistory(false)}>
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold">
+                  {ALL_EXERCISES.find(ex => ex.id === historyExerciseId)?.name} - History
+                </h2>
+                <button onClick={() => setShowExerciseHistory(false)} className="text-slate-400 hover:text-white text-xl">
+                  ✕
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                {getExerciseHistory(historyExerciseId).map((session, idx) => (
+                  <div key={idx} className="bg-slate-800 rounded-lg p-4 border border-slate-700">
+                    <div className="flex justify-between items-start mb-3">
+                      <div>
+                        <div className="text-sm text-slate-400">
+                          {new Date(session.date).toLocaleDateString()}
+                        </div>
+                        <div className="text-emerald-400 font-bold text-lg">
+                          {session.volume}kg total
+                        </div>
+                      </div>
+                      <div className="text-sm text-slate-400">
+                        {session.sets.length} sets
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      {session.sets.map((set, setIdx) => (
+                        <div key={setIdx} className="flex items-center justify-between text-sm bg-slate-900 rounded px-3 py-2">
+                          <span className="text-slate-400">Set {set.setNumber}</span>
+                          <span className="text-white font-bold">
+                            {set.weight}kg × {set.reps}
+                            {set.rpe && <span className="text-emerald-400 ml-2">@{set.rpe}</span>}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+
+                {getExerciseHistory(historyExerciseId).length === 0 && (
+                  <div className="text-center py-8 text-slate-500">
+                    No history for this exercise yet.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         )}
 
       </div>
