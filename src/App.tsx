@@ -15,6 +15,7 @@ import { AccountPage } from "./components/AccountPage";
 import { ExerciseInstructionsModal } from './components/ExerciseInstructionsModal';
 import { WorkoutTemplateModal } from './components/WorkoutTemplateModal';
 import { WORKOUT_TEMPLATES, WorkoutTemplate } from './data/workoutTemplates';
+import { PlateCalculatorModal } from './components/PlateCalculatorModal';
 
 // Data
 import { RAW_EXERCISES } from "./exercises-data";
@@ -45,6 +46,22 @@ export type Exercise = {
   primaryMuscles?: string[];
   secondaryMuscles?: string[];
 };
+
+// WorkoutExercise: entries inside a Workout (supports superset metadata)
+interface WorkoutExercise {
+  id: string; // unique id for the workout entry (we use exercise id by default)
+  exerciseId: string; // id referencing the base Exercise
+  name: string;
+  muscleGroup: MuscleGroup;
+  imageUrl?: string;
+  targetSets?: number;
+  targetReps?: string;
+  notes?: string;
+  note?: string; // legacy alias for compatibility
+  // Superset support
+  supersetWith?: string; // ID of the exercise to superset with
+  supersetGroup?: string; // Unique ID for the superset group (e.g., "superset-1")
+}
 
 export type Workout = {
   id: string;
@@ -204,7 +221,7 @@ function App() {
   const [mode, setMode] = useState<"overview" | "active">("overview");
   const [selectedWorkoutId, setSelectedWorkoutId] = useState<string | null>(null);
   const [selectedExerciseId, setSelectedExerciseId] = useState<string | null>(null);
-  const [workoutExercises, setWorkoutExercises] = useState<Exercise[]>([]);
+  const [workoutExercises, setWorkoutExercises] = useState<WorkoutExercise[]>([]);
   const [workoutExercisesData, setWorkoutExercisesData] = useState<Record<string, ExerciseSessionData>>({});
   const [activeSets, setActiveSets] = useState<ActiveSet[]>([
     { setNumber: 1, weight: null, reps: null, rpe: null, completed: false },
@@ -223,6 +240,14 @@ function App() {
 
   // Workout Templates
   const [showTemplateModal, setShowTemplateModal] = useState(false);
+
+  // Plate Calculator
+  const [showPlateCalcModal, setShowPlateCalcModal] = useState(false);
+  const [plateCalcWeight, setPlateCalcWeight] = useState(60);
+
+  // Superset UI
+  const [showSupersetOptions, setShowSupersetOptions] = useState(false);
+  const [selectedForSuperset, setSelectedForSuperset] = useState<string | null>(null);
 
   // Exercise History Modal
   const [showExerciseHistory, setShowExerciseHistory] = useState(false);
@@ -559,7 +584,17 @@ function App() {
       exercises = workout.exercises;
     }
 
-    setWorkoutExercises(exercises);
+    // Map to WorkoutExercise entries
+    const mapped = exercises.map(e => ({
+      id: e.id,
+      exerciseId: e.id,
+      name: e.name,
+      muscleGroup: e.muscleGroup,
+      imageUrl: e.imageUrl,
+      notes: e.note || undefined
+    } as WorkoutExercise));
+
+    setWorkoutExercises(mapped);
     setWorkoutExercisesData({});
     setSelectedExerciseId(null);
     setActiveSets([{ setNumber: 1, weight: null, reps: null, rpe: null, completed: false }]);
@@ -617,7 +652,15 @@ function App() {
   const handleAddExercisesToWorkout = () => {
     const newExercises = selectedExerciseIds
       .map(id => ALL_EXERCISES.find(ex => ex.id === id))
-      .filter((ex): ex is Exercise => ex !== undefined);
+      .filter((ex): ex is Exercise => ex !== undefined)
+      .map(e => ({
+        id: e.id,
+        exerciseId: e.id,
+        name: e.name,
+        muscleGroup: e.muscleGroup,
+        imageUrl: e.imageUrl,
+        notes: e.note || undefined
+      } as WorkoutExercise));
 
     setWorkoutExercises(prev => [...prev, ...newExercises]);
     setSelectedExerciseIds([]);
@@ -626,7 +669,7 @@ function App() {
 
   // Apply Workout Template
   const handleApplyTemplate = (template: WorkoutTemplate) => {
-    // Find exercises from template
+    // Find exercises from template and map to WorkoutExercise
     const templateExercises = template.exercises
       .map(te => {
         const exercise = ALL_EXERCISES.find(ex => 
@@ -636,15 +679,19 @@ function App() {
         
         if (exercise) {
           return {
-            ...exercise,
+            id: exercise.id,
+            exerciseId: exercise.id,
+            name: exercise.name,
+            muscleGroup: exercise.muscleGroup,
+            imageUrl: exercise.imageUrl,
             targetSets: te.sets,
             targetReps: te.repsRange,
             notes: te.notes || '',
-          };
+          } as WorkoutExercise;
         }
         return null;
       })
-      .filter(Boolean) as Exercise[];
+      .filter(Boolean) as WorkoutExercise[];
 
     // Add to current workout
     setWorkoutExercises(prev => [...prev, ...templateExercises]);
@@ -714,6 +761,37 @@ function App() {
       exercises.splice(to, 0, moved);
 
       return exercises;
+    });
+  };
+
+  // Toggle Superset between two exercises
+  const handleToggleSuperset = (exerciseId1: string, exerciseId2: string) => {
+    setWorkoutExercises(prev => {
+      const newExercises = [...prev];
+      const idx1 = newExercises.findIndex(ex => ex.id === exerciseId1);
+      const idx2 = newExercises.findIndex(ex => ex.id === exerciseId2);
+      
+      if (idx1 === -1 || idx2 === -1) return prev;
+      
+      // Check if already in a superset
+      const alreadySuperset = newExercises[idx1].supersetWith === exerciseId2;
+      
+      if (alreadySuperset) {
+        // Remove superset
+        newExercises[idx1].supersetWith = undefined;
+        newExercises[idx1].supersetGroup = undefined;
+        newExercises[idx2].supersetWith = undefined;
+        newExercises[idx2].supersetGroup = undefined;
+      } else {
+        // Create superset
+        const supersetId = `superset-${Date.now()}`;
+        newExercises[idx1].supersetWith = exerciseId2;
+        newExercises[idx1].supersetGroup = supersetId;
+        newExercises[idx2].supersetWith = exerciseId1;
+        newExercises[idx2].supersetGroup = supersetId;
+      }
+      
+      return newExercises;
     });
   };
 
@@ -1228,73 +1306,123 @@ function App() {
                 {workoutExercises.map((ex, index) => {
                   const isCompleted = !!workoutExercisesData[ex.id];
                   return (
-                    <div
-                      key={ex.id}
-                      draggable
-                      onDragStart={() => setDraggedExerciseIndex(index)}
-                      onDragOver={(e) => e.preventDefault()}
-                      onDrop={() => {
-                        if (draggedExerciseIndex !== null) {
-                          handleMoveExercise(draggedExerciseIndex, index);
-                          setDraggedExerciseIndex(null);
-                        }
-                      }}
-                      className="group cursor-move"
-                    >
-                      <button
-                        onClick={() => handleSelectExercise(ex.id)}
-                        className={`w-full p-4 rounded-lg border transition-all text-left flex items-center gap-4 ${isCompleted
-                            ? "bg-emerald-950/20 border-emerald-500/50"
-                            : "bg-slate-900 border-slate-800 hover:border-slate-700"
-                          }`}
+                    <div key={ex.id} className="relative">
+                      {/* Superset Indicator */}
+                      {ex.supersetGroup && (
+                        <div className="absolute -left-3 top-0 bottom-0 w-1 bg-purple-500 rounded-full" />
+                      )}
+
+                      <div
+                        draggable
+                        onDragStart={() => setDraggedExerciseIndex(index)}
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={() => {
+                          if (draggedExerciseIndex !== null) {
+                            handleMoveExercise(draggedExerciseIndex, index);
+                            setDraggedExerciseIndex(null);
+                          }
+                        }}
+                        className="group cursor-move"
                       >
-                        {ex.imageUrl && (
-                          <img
-                            src={ex.imageUrl}
-                            alt={ex.name}
-                            className="w-16 h-16 object-cover rounded-lg"
-                          />
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-bold text-white group-hover:text-emerald-400 transition-colors truncate">
-                            {ex.name}
-                          </h3>
-                          <p className="text-xs text-slate-500 uppercase">{ex.muscleGroup}</p>
-                          {ex.instructions?.[0] && (
-                            <p className="text-xs text-slate-400 mt-1 line-clamp-2">{ex.instructions[0]}</p>
+                        <button
+                          onClick={() => handleSelectExercise(ex.id)}
+                          className={`w-full p-4 rounded-lg border transition-all text-left flex items-center gap-4 ${isCompleted
+                              ? "bg-emerald-950/20 border-emerald-500/50"
+                              : "bg-slate-900 border-slate-800 hover:border-slate-700"
+                            }`}
+                        >
+                          {ex.imageUrl && (
+                            <img
+                              src={ex.imageUrl}
+                              alt={ex.name}
+                              className="w-16 h-16 object-cover rounded-lg"
+                            />
                           )}
-                          {isCompleted && (
-                            <p className="text-xs text-emerald-400 mt-1">
-                              {workoutExercisesData[ex.id].sets.filter(s => s.completed).length} sets · {workoutExercisesData[ex.id].volume} kg
-                            </p>
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-bold text-white group-hover:text-emerald-400 transition-colors truncate">
+                              {ex.name}
+                            </h3>
+                            <p className="text-xs text-slate-500 uppercase">{ex.muscleGroup}</p>
+                            {isCompleted && (
+                              <p className="text-xs text-emerald-400 mt-1">
+                                {workoutExercisesData[ex.id].sets.filter(s => s.completed).length} sets · {workoutExercisesData[ex.id].volume} kg
+                              </p>
+                            )}
+                          </div>
+                          {isCompleted ? (
+                            <span className="text-emerald-400 text-2xl font-bold">✓</span>
+                          ) : (
+                            <span className="text-slate-600 text-xl font-bold">○</span>
                           )}
+                        </button>
+
+                        <div className="ml-4 mt-2 flex items-center gap-2">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setHistoryExerciseId(ex.id);
+                              setShowExerciseHistory(true);
+                            }}
+                            className="text-xs text-blue-400 hover:text-blue-300"
+                          >
+                            📊 History
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRemoveExercise(ex.id);
+                            }}
+                            className="text-xs text-red-400 hover:text-red-300"
+                          >
+                            Remove
+                          </button>
                         </div>
-                        {isCompleted ? (
-                          <span className="text-emerald-400 text-2xl font-bold">✓</span>
-                        ) : (
-                          <span className="text-slate-600 text-xl font-bold">○</span>
+
+                        {/* Superset Link Button - appears when Superset Mode is active */}
+                        {showSupersetOptions && !ex.supersetWith && (
+                          <div className="mt-2">
+                            {selectedForSuperset === ex.id ? (
+                              <button
+                                onClick={() => setSelectedForSuperset(null)}
+                                className="w-full py-2 bg-purple-600 text-white rounded-lg font-medium"
+                              >
+                                ✓ Selected - Choose partner exercise
+                              </button>
+                            ) : selectedForSuperset ? (
+                              <button
+                                onClick={() => {
+                                  handleToggleSuperset(selectedForSuperset as string, ex.id);
+                                  setSelectedForSuperset(null);
+                                }}
+                                className="w-full py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg font-medium transition-all"
+                              >
+                                🔗 Link as Superset
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => setSelectedForSuperset(ex.id)}
+                                className="w-full py-2 border-2 border-dashed border-purple-500 hover:bg-purple-500/10 text-purple-400 rounded-lg font-medium transition-all"
+                              >
+                                Select for Superset
+                              </button>
+                            )}
+                          </div>
                         )}
-                      </button>
-                      <div className="ml-4 mt-2 flex items-center gap-2">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setHistoryExerciseId(ex.id);
-                            setShowExerciseHistory(true);
-                          }}
-                          className="text-xs text-blue-400 hover:text-blue-300"
-                        >
-                          📊 History
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleRemoveExercise(ex.id);
-                          }}
-                          className="text-xs text-red-400 hover:text-red-300"
-                        >
-                          Remove
-                        </button>
+
+                        {/* Superset - When exercise already linked, show a small badge and option to remove */}
+                        {showSupersetOptions && ex.supersetWith && (
+                          <div className="mt-2 flex gap-2">
+                            <div className="flex-1 py-2 px-3 bg-purple-900/10 rounded-lg text-sm">
+                              🔗 Superset with {workoutExercises.find(e => e.id === ex.supersetWith)?.name}
+                            </div>
+                            <button
+                              onClick={() => handleToggleSuperset(ex.id, ex.supersetWith as string)}
+                              className="py-2 px-3 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
@@ -1323,41 +1451,55 @@ function App() {
 
             {selectedExerciseId && selectedExercise && (
               <div className="max-w-4xl mx-auto">
-                <ActiveWorkoutCard
-                  exerciseId={selectedExerciseId}
-                  exerciseName={selectedExercise.name}
-                  muscleGroup={selectedExercise.muscleGroup}
-                  sets={activeSets}
-                  note={selectedExercise.note}
-                  onSetChange={(index: number, field: string, value: any) => {
-                    setActiveSets(prev => prev.map((s, i) => 
-                      i === index ? { ...s, [field]: value } : s
-                    ));
-                  }}
-                  onAddSet={() => {
-                    setActiveSets(prev => [...prev, {
-                      setNumber: prev.length + 1,
-                      weight: null,
-                      reps: null,
-                      rpe: null,
-                      completed: false
-                    }]);
-                  }}
-                  onStartRest={(seconds: number) => {
-                    setCustomRestSeconds(seconds);
-                    setShowRestTimer(true);
-                  }}
-                  onNoteChange={(note: string) => {
-                    setWorkoutExercises(prev => prev.map(ex => 
-                      ex.id === selectedExerciseId ? { ...ex, note } : ex
-                    ));
-                  }}
-                  isDeload={isDeload}
-                  showRPE={showRPE}
-                  show1RM={show1RM}
-                  showPlateCalculator={showPlateCalculator}
-                  allExercises={ALL_EXERCISES}
-                />
+                {(() => {
+                  const currentWorkoutExercise = workoutExercises.find(ex => ex.id === selectedExerciseId);
+                  const supersetPartnerName = currentWorkoutExercise?.supersetWith ? workoutExercises.find(e => e.id === currentWorkoutExercise.supersetWith)?.name : undefined;
+                  return (
+                    <ActiveWorkoutCard
+                      exerciseId={selectedExerciseId}
+                      exerciseName={selectedExercise.name}
+                      muscleGroup={selectedExercise.muscleGroup}
+                      sets={activeSets}
+                      note={selectedExercise.note}
+                      onSetChange={(index: number, field: string, value: any) => {
+                        setActiveSets(prev => prev.map((s, i) => 
+                          i === index ? { ...s, [field]: value } : s
+                        ));
+                      }}
+                      onAddSet={() => {
+                        setActiveSets(prev => [...prev, {
+                          setNumber: prev.length + 1,
+                          weight: null,
+                          reps: null,
+                          rpe: null,
+                          completed: false
+                        }]);
+                      }}
+                      onStartRest={(seconds: number) => {
+                        setCustomRestSeconds(seconds);
+                        setShowRestTimer(true);
+                      }}
+                      onNoteChange={(note: string) => {
+                        setWorkoutExercises(prev => prev.map(ex => 
+                          ex.id === selectedExerciseId ? { ...ex, note } : ex
+                        ));
+                      }}
+                      isDeload={isDeload}
+                      showRPE={showRPE}
+                      show1RM={show1RM}
+                      showPlateCalculator={showPlateCalculator}
+                      allExercises={ALL_EXERCISES}
+                      isSupersetWith={supersetPartnerName}
+                      supersetGroup={currentWorkoutExercise?.supersetGroup}
+                      onToggleSuperset={() => {
+                        if (currentWorkoutExercise?.supersetWith) {
+                          handleToggleSuperset(currentWorkoutExercise.id, currentWorkoutExercise.supersetWith);
+                        }
+                      }}
+                    />
+                  );
+                })()}
+
                 
                 <div className="max-w-4xl mx-auto mt-4 flex gap-3">
                   <button
@@ -1519,6 +1661,37 @@ function App() {
                     <span className="text-slate-500 px-2">min</span>
                   </div>
                 </div>
+
+                {/* Superset Mode */}
+                <div className="mt-4 border-t border-slate-700 pt-4">
+                  <div className="flex items-center justify-between p-3 bg-slate-800 rounded-lg">
+                    <div>
+                      <div className="font-medium">Superset Mode</div>
+                      <div className="text-xs text-slate-400">Link exercises together</div>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={showSupersetOptions}
+                        onChange={(e) => setShowSupersetOptions(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                    </label>
+                  </div>
+
+                  <div className="mt-3">
+                    <button
+                      onClick={() => {
+                        setPlateCalcWeight(60);
+                        setShowPlateCalcModal(true);
+                      }}
+                      className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-all"
+                    >
+                      🏋️ Plate Calculator
+                    </button>
+                  </div>
+                </div>
               </div>
 
               <button
@@ -1585,7 +1758,15 @@ function App() {
             onSelectExercise={(exerciseId: string) => {
               const exercise = ALL_EXERCISES.find(ex => ex.id === exerciseId);
               if (exercise) {
-                setWorkoutExercises(prev => [...prev, exercise]);
+                const we: WorkoutExercise = {
+                  id: exercise.id,
+                  exerciseId: exercise.id,
+                  name: exercise.name,
+                  muscleGroup: exercise.muscleGroup,
+                  imageUrl: exercise.imageUrl,
+                  note: exercise.note || undefined
+                };
+                setWorkoutExercises(prev => [...prev, we]);
                 setShowExerciseSearchModal(false);
               }
             }}
@@ -1654,6 +1835,15 @@ function App() {
               </div>
             </div>
           </div>
+        )}
+
+        {/* Plate Calculator Modal */}
+        {showPlateCalcModal && (
+          <PlateCalculatorModal
+            isOpen={showPlateCalcModal}
+            onClose={() => setShowPlateCalcModal(false)}
+            initialWeight={plateCalcWeight}
+          />
         )}
 
         {/* Workout Template Modal */}

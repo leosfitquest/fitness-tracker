@@ -9,6 +9,11 @@ interface ActiveWorkoutCardProps {
   muscleGroup: string;
   sets: ActiveSet[];
   note?: string;
+  // Superset Props
+  isSupersetWith?: string; // Name of other exercise
+  supersetGroup?: string;
+  onToggleSuperset?: () => void;
+  
   onSetChange: (index: number, field: string, value: any) => void;
   onAddSet: () => void;
   onStartRest: (seconds: number) => void;
@@ -35,6 +40,9 @@ export function ActiveWorkoutCard({
   show1RM,
   showPlateCalculator,
   allExercises,
+  isSupersetWith,
+  supersetGroup,
+  onToggleSuperset,
 }: ActiveWorkoutCardProps) {
   const [showInstructions, setShowInstructions] = useState(false);
   const [showNoteInput, setShowNoteInput] = useState(false);
@@ -94,6 +102,23 @@ export function ActiveWorkoutCard({
           </div>
         </div>
 
+        {/* Superset Badge */}
+        {isSupersetWith && (
+          <div className="px-4 py-2 bg-purple-900/20 border-b border-purple-900/30 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-purple-400 font-bold text-sm">🔗 SUPERSET WITH:</span>
+              <span className="text-white text-sm">{isSupersetWith}</span>
+            </div>
+            {onToggleSuperset && (
+              <button
+                onClick={onToggleSuperset}
+                className="text-xs text-red-400 hover:text-red-300 px-2 py-1 rounded hover:bg-red-500/10 transition-all"
+              >
+                Remove Superset
+              </button>
+            )}
+          </div>
+        )}
 
 
         {/* Sets */}
