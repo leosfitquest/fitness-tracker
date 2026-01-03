@@ -13,6 +13,8 @@ import { SessionDetailModal } from "./components/SessionDetailModal";
 import { BottomNav } from "./components/BottomNav";
 import { AccountPage } from "./components/AccountPage";
 import { ExerciseInstructionsModal } from './components/ExerciseInstructionsModal';
+import { WorkoutTemplateModal } from './components/WorkoutTemplateModal';
+import { WORKOUT_TEMPLATES, WorkoutTemplate } from './data/workoutTemplates';
 
 // Data
 import { RAW_EXERCISES } from "./exercises-data";
@@ -218,6 +220,9 @@ function App() {
   // Exercise Search Modal State
   const [showExerciseSearchModal, setShowExerciseSearchModal] = useState(false);
   const [selectedExerciseIds, setSelectedExerciseIds] = useState<string[]>([]);
+
+  // Workout Templates
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
 
   // Exercise History Modal
   const [showExerciseHistory, setShowExerciseHistory] = useState(false);
@@ -618,6 +623,36 @@ function App() {
     setSelectedExerciseIds([]);
     setShowExerciseSearchModal(false);
   };
+
+  // Apply Workout Template
+  const handleApplyTemplate = (template: WorkoutTemplate) => {
+    // Find exercises from template
+    const templateExercises = template.exercises
+      .map(te => {
+        const exercise = ALL_EXERCISES.find(ex => 
+          ex.name.toLowerCase().includes(te.exerciseName.toLowerCase()) ||
+          te.exerciseName.toLowerCase().includes(ex.name.toLowerCase())
+        );
+        
+        if (exercise) {
+          return {
+            ...exercise,
+            targetSets: te.sets,
+            targetReps: te.repsRange,
+            notes: te.notes || '',
+          };
+        }
+        return null;
+      })
+      .filter(Boolean) as Exercise[];
+
+    // Add to current workout
+    setWorkoutExercises(prev => [...prev, ...templateExercises]);
+    
+    // Show success message
+    alert(`✅ Added ${templateExercises.length} exercises from "${template.name}"`);
+  };
+
 
   const handleSelectExercise = (exerciseId: string) => {
     setSelectedExerciseId(exerciseId);
@@ -1265,12 +1300,24 @@ function App() {
                   );
                 })}
 
-                <button
-                  onClick={() => setShowExerciseSearchModal(true)}
-                  className="w-full py-4 rounded-lg border-2 border-dashed border-slate-700 hover:border-emerald-500 text-slate-400 hover:text-emerald-400 transition-all"
-                >
-                  + Add Exercise
-                </button>
+                {/* Template & Add Exercise Buttons */}
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  <button
+                    onClick={() => setShowTemplateModal(true)}
+                    className="py-4 rounded-lg border-2 border-dashed border-blue-700 hover:border-blue-500 text-blue-400 hover:text-blue-300 transition-all flex items-center justify-center gap-2"
+                  >
+                    <span className="text-xl">📋</span>
+                    <span className="font-medium">Use Template</span>
+                  </button>
+                  
+                  <button
+                    onClick={() => setShowExerciseSearchModal(true)}
+                    className="py-4 rounded-lg border-2 border-dashed border-slate-700 hover:border-emerald-500 text-slate-400 hover:text-emerald-400 transition-all flex items-center justify-center gap-2"
+                  >
+                    <span className="text-xl">+</span>
+                    <span className="font-medium">Add Exercise</span>
+                  </button>
+                </div>
               </div>
             )}
 
@@ -1608,6 +1655,13 @@ function App() {
             </div>
           </div>
         )}
+
+        {/* Workout Template Modal */}
+        <WorkoutTemplateModal
+          isOpen={showTemplateModal}
+          onClose={() => setShowTemplateModal(false)}
+          onSelectTemplate={handleApplyTemplate}
+        />
 
       </div>
 
