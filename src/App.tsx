@@ -16,6 +16,8 @@ import { ExerciseInstructionsModal } from './components/ExerciseInstructionsModa
 import { WorkoutTemplateModal } from './components/WorkoutTemplateModal';
 import { WORKOUT_TEMPLATES, WorkoutTemplate } from './data/workoutTemplates';
 import { PlateCalculatorModal } from './components/PlateCalculatorModal';
+import { ThemeToggle } from './contexts/ThemeToggle';
+import { checkSetPR, calculateSessionPRs, type SetPR } from './utils/PRTracker';
 
 // Data
 import { RAW_EXERCISES } from "./exercises-data";
@@ -79,6 +81,9 @@ export type ActiveSet = {
   reps: number | null;
   rpe: number | null;
   completed: boolean;
+  // PR flags
+  isPR?: boolean;
+  prType?: 'weight' | 'reps' | 'both' | 'none';
 };
 
 export type ExerciseSessionData = {
@@ -265,6 +270,10 @@ function App() {
   const [sessionPRs, setSessionPRs] = useState<PersonalRecord[]>([]);
   const [showPRNotification, setShowPRNotification] = useState(false);
 
+  // Set-level PR tracking
+  const [sessionSetPRs, setSessionSetPRs] = useState<Map<string, any[]>>(new Map());
+  const [historicalPRData, setHistoricalPRData] = useState<SetPR[]>([]);
+
   // Session Detail Modal
   const [selectedSession, setSelectedSession] = useState<WorkoutSessionLog | null>(null);
   const [selectedExerciseDetail, setSelectedExerciseDetail] = useState<Exercise | null>(null);
@@ -371,6 +380,44 @@ function App() {
     };
 
     loadData();
+  }, [user]);
+
+  // Load PR History
+  useEffect(() => {
+    if (!user) return;
+
+    const loadPRHistory = async () => {
+      const { data: logs } = await supabase
+        .from('workout_sessions')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('ended_at', { ascending: false })
+        .limit(50);
+
+      if (!logs) return;
+
+      const prData: SetPR[] = [];
+      logs.forEach((log: any) => {
+        const exercises = log.exercises || [];
+        exercises.forEach((ex: any) => {
+          ex.sets?.forEach((set: any) => {
+            if (set.completed && set.weight && set.reps) {
+              prData.push({
+                exerciseId: ex.exerciseId,
+                setNumber: set.setNumber,
+                weight: set.weight,
+                reps: set.reps,
+                date: log.ended_at || log.started_at,
+              });
+            }
+          });
+        });
+      });
+
+      setHistoricalPRData(prData);
+    };
+
+    loadPRHistory();
   }, [user]);
 
   // Live Timer
@@ -1462,9 +1509,35 @@ function App() {
                       sets={activeSets}
                       note={selectedExercise.note}
                       onSetChange={(index: number, field: string, value: any) => {
-                        setActiveSets(prev => prev.map((s, i) => 
-                          i === index ? { ...s, [field]: value } : s
-                        ));
+                        setActiveSets(prev => {
+                          const next = prev.map((s, i) => i === index ? { ...s, [field]: value } : s);
+
+                          // If set marked completed, run PR check
+                          if (field === 'completed' && value === true) {
+                            const s = next[index];
+                            if (s && s.weight && s.reps && selectedExerciseId) {
+                              const pr = checkSetPR(selectedExerciseId, s.setNumber, s.weight, s.reps, historicalPRData);
+                              if (pr.isPR) {
+                                // Mark set as PR
+                                next[index] = { ...next[index], isPR: true, prType: (pr.improvement || 'both') };
+
+                                // Save to session set-level PRs
+                                setSessionSetPRs(map => {
+                                  const m = new Map(map);
+                                  const arr = m.get(selectedExerciseId) || [];
+                                  arr.push({ setNumber: s.setNumber, weight: s.weight, reps: s.reps, improvement: pr.improvement });
+                                  m.set(selectedExerciseId, arr);
+                                  return m;
+                                });
+
+                                // Notification
+                                alert(`🔥 NEW PR! Set ${s.setNumber}: ${s.weight}kg × ${s.reps} reps`);
+                              }
+                            }
+                          }
+
+                          return next;
+                        });
                       }}
                       onAddSet={() => {
                         setActiveSets(prev => [...prev, {
@@ -1692,6 +1765,12 @@ function App() {
                     </button>
                   </div>
                 </div>
+
+                {/* Theme Toggle */}
+                <div className="mt-4">
+                  <ThemeToggle />
+                </div>
+
               </div>
 
               <button

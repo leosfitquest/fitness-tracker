@@ -10,7 +10,7 @@ interface ActiveWorkoutCardProps {
   sets: ActiveSet[];
   note?: string;
   // Superset Props
-  isSupersetWith?: string; // Name of other exercise
+  isSupersetWith?: string;
   supersetGroup?: string;
   onToggleSuperset?: () => void;
   
@@ -120,7 +120,6 @@ export function ActiveWorkoutCard({
           </div>
         )}
 
-
         {/* Sets */}
         <div className="p-4 space-y-2">
           {/* Column Headers */}
@@ -139,10 +138,13 @@ export function ActiveWorkoutCard({
             <SetEntryRow
               key={index}
               setNumber={set.setNumber}
-              weight={set.weight}
-              reps={set.reps}
-              rpe={set.rpe}
+              weight={set.weight ?? undefined}
+              reps={set.reps ?? undefined}
+              rpe={set.rpe ?? undefined}
               completed={set.completed}
+              isPR={set.isPR}
+              prType={set.prType}
+              previousBest={undefined}
               onWeightChange={(weight) => onSetChange(index, 'weight', weight)}
               onRepsChange={(reps) => onSetChange(index, 'reps', reps)}
               onRPEChange={(rpe) => onSetChange(index, 'rpe', rpe)}

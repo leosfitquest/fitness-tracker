@@ -5,14 +5,17 @@ interface SetEntryRowProps {
   targetReps?: number;
   previousWeight?: number;
   previousReps?: number;
-  weight: number | null;
-  reps: number | null;
-  rpe: number | null;
+  weight?: number;
+  reps?: number;
+  rpe?: number;
   completed: boolean;
-  isPersonalRecord?: boolean;
-  onWeightChange: (weight: number | null) => void;
-  onRepsChange: (reps: number | null) => void;
-  onRPEChange: (rpe: number | null) => void;
+  // PR Detection
+  isPR?: boolean;
+  prType?: 'weight' | 'reps' | 'both' | 'none';
+  previousBest?: { weight: number; reps: number };
+  onWeightChange: (weight: number | undefined) => void;
+  onRepsChange: (reps: number | undefined) => void;
+  onRPEChange: (rpe: number | undefined) => void;
   onCompletedChange: (completed: boolean) => void;
   showRPE?: boolean;
   show1RM?: boolean;
@@ -28,7 +31,9 @@ export function SetEntryRow({
   reps,
   rpe,
   completed,
-  isPersonalRecord = false,
+  isPR = false,
+  prType = 'none',
+  previousBest,
   onWeightChange,
   onRepsChange,
   onRPEChange,
@@ -39,20 +44,20 @@ export function SetEntryRow({
 }: SetEntryRowProps) {
   const [isFocused, setIsFocused] = useState(false);
   const [showPlates, setShowPlates] = useState(false);
-  const [showRPEPicker, setShowRPEPicker] = useState(false); // NEU: RPE Picker State
+  const [showRPEPicker, setShowRPEPicker] = useState(false);
 
   const handleWeightChange = (value: string) => {
-    const num = value ? Number(value) : null;
-    onWeightChange(Number.isNaN(num) ? null : num);
+    const num = value !== '' ? Number(value) : undefined;
+    onWeightChange(Number.isNaN(num) ? undefined : num);
   };
 
   const handleRepsChange = (value: string) => {
-    const num = value ? Number(value) : null;
-    onRepsChange(Number.isNaN(num) ? null : num);
+    const num = value !== '' ? Number(value) : undefined;
+    onRepsChange(Number.isNaN(num) ? undefined : num);
   };
 
   // 1RM Calculation with RPE
-  const calculate1RM = (w: number, r: number, rpeValue?: number | null): number => {
+  const calculate1RM = (w: number, r: number, rpeValue?: number): number => {
     if (r === 1 && (!rpeValue || rpeValue === 10)) return w;
     
     const repPercentages: Record<number, number> = {
@@ -64,18 +69,18 @@ export function SetEntryRow({
       26: 0.54, 27: 0.53,  28: 0.52,  29: 0.51,  30: 0.50,
     };
     
-    const getRepsInReserve = (rpe: number): number => {
-      if (rpe >= 10) return 0;
-      if (rpe >= 9.5) return 0.5;
-      if (rpe >= 9) return 1;
-      if (rpe >= 8.5) return 1.5;
-      if (rpe >= 8) return 2;
-      if (rpe >= 7.5) return 2.5;
-      if (rpe >= 7) return 3;
-      if (rpe >= 6.5) return 3.5;
-      if (rpe >= 6) return 4;
-      if (rpe >= 5.5) return 4.5;
-      if (rpe >= 5) return 5;
+    const getRepsInReserve = (rpeVal: number): number => {
+      if (rpeVal >= 10) return 0;
+      if (rpeVal >= 9.5) return 0.5;
+      if (rpeVal >= 9) return 1;
+      if (rpeVal >= 8.5) return 1.5;
+      if (rpeVal >= 8) return 2;
+      if (rpeVal >= 7.5) return 2.5;
+      if (rpeVal >= 7) return 3;
+      if (rpeVal >= 6.5) return 3.5;
+      if (rpeVal >= 6) return 4;
+      if (rpeVal >= 5.5) return 4.5;
+      if (rpeVal >= 5) return 5;
       return 6;
     };
     
@@ -127,10 +132,27 @@ export function SetEntryRow({
       }`}
     >
       {/* Main Row */}
-      <div className="grid gap-2 p-2" style={{ gridTemplateColumns: showRPE ? '40px 1fr 1fr 50px 40px' : '40px 1fr 1fr 40px' }}>
-        {/* Set Number */}
-        <div className="flex items-center justify-center">
-          <span className="text-slate-400 font-bold text-sm">{setNumber}</span>
+      <div 
+        className="grid gap-2 p-2" 
+        style={{ gridTemplateColumns: showRPE ? '40px 1fr 1fr 50px 40px' : '40px 1fr 1fr 40px' }}
+      >
+        {/* Set Number mit PR Badge */}
+        <div className="flex flex-col items-center justify-center">
+          <div className="text-center font-bold text-slate-400">{setNumber}</div>
+          {isPR && completed && (
+            <div 
+              className={`text-[10px] font-bold px-1 rounded mt-0.5 ${
+                prType === 'both' ? 'bg-yellow-500 text-black' :
+                prType === 'weight' ? 'bg-blue-500 text-white' :
+                prType === 'reps' ? 'bg-green-500 text-white' :
+                'bg-slate-600 text-white'
+              }`}
+            >
+              {prType === 'both' ? '🔥PR' : 
+               prType === 'weight' ? '💪' : 
+               prType === 'reps' ? '🔁' : 'PR'}
+            </div>
+          )}
         </div>
 
         {/* Weight Input */}
@@ -193,7 +215,7 @@ export function SetEntryRow({
               <span className="text-sm text-slate-300 font-bold">Select RPE</span>
               <button
                 onClick={() => {
-                  onRPEChange(null);
+                  onRPEChange(undefined);
                   setShowRPEPicker(false);
                 }}
                 className="text-xs text-red-400 hover:text-red-300 px-2 py-1 rounded hover:bg-red-500/10"
@@ -247,7 +269,7 @@ export function SetEntryRow({
               <span className="font-bold">Est. 1RM:</span> {estimated1RM}kg
               {rpe && rpe < 10 && <span className="text-slate-500 ml-1">(@ RPE {rpe})</span>}
             </span>
-            {isPersonalRecord && <span className="text-orange-400 font-bold">🔥 PR!</span>}
+            {isPR && <span className="text-orange-400 font-bold">🔥 PR!</span>}
           </div>
         </div>
       )}
