@@ -16,7 +16,6 @@ export function WorkoutTemplateModal({ isOpen, onClose, onSelectTemplate }: Work
     t => selectedCategory === 'all' || t.category === selectedCategory
   );
 
-  // Group by split type
   const groupedTemplates = {
     'Push Pull Legs': filteredTemplates.filter(t => t.id.startsWith('ppl')),
     'Upper/Lower': filteredTemplates.filter(t => t.id.startsWith('upper-lower')),
@@ -50,7 +49,7 @@ export function WorkoutTemplateModal({ isOpen, onClose, onSelectTemplate }: Work
           </div>
 
           {/* Category Filter */}
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <button
               onClick={() => setSelectedCategory('all')}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
