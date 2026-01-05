@@ -250,6 +250,9 @@ function App() {
   const [showPlateCalcModal, setShowPlateCalcModal] = useState(false);
   const [plateCalcWeight, setPlateCalcWeight] = useState(60);
 
+  const [showAdvancedFeatures, setShowAdvancedFeatures] = useState(false);
+  const [defaultRestTime, setDefaultRestTime] = useState(90);
+
   // Superset UI
   const [showSupersetOptions, setShowSupersetOptions] = useState(false);
   const [selectedForSuperset, setSelectedForSuperset] = useState<string | null>(null);
@@ -484,10 +487,12 @@ function App() {
       show1RM,
       showPlateCalculator,
       autoStartRest,
-      customRestSeconds
+      customRestSeconds,
+      defaultRestTime,
+      showAdvancedFeatures
     };
     localStorage.setItem('workoutSettings', JSON.stringify(settings));
-  }, [showRPE, show1RM, showPlateCalculator, autoStartRest, customRestSeconds]);
+  }, [showRPE, show1RM, showPlateCalculator, autoStartRest, customRestSeconds, defaultRestTime, showAdvancedFeatures]);
 
   // Load advanced features from localStorage on mount
   useEffect(() => {
@@ -500,6 +505,8 @@ function App() {
         if (settings.showPlateCalculator !== undefined) setShowPlateCalculator(settings.showPlateCalculator);
         if (settings.autoStartRest !== undefined) setAutoStartRest(settings.autoStartRest);
         if (settings.customRestSeconds !== undefined) setCustomRestSeconds(settings.customRestSeconds);
+        if (settings.defaultRestTime !== undefined) setDefaultRestTime(settings.defaultRestTime);
+        if (settings.showAdvancedFeatures !== undefined) setShowAdvancedFeatures(settings.showAdvancedFeatures);
       } catch (err) {
         console.error('Error loading workout settings:', err);
       }
@@ -1636,146 +1643,169 @@ function App() {
           </div>
         )}
 
+        {/* Workout Settings Modal - NEU STRUKTURIERT */}
         {showWorkoutSettings && (
-          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 max-w-md w-full max-h-[80vh] overflow-y-auto">
+          <div
+            className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
+            onClick={() => setShowWorkoutSettings(false)}
+          >
+            <div
+              className="bg-slate-900 border border-slate-800 rounded-xl p-6 max-w-md w-full max-h-[85vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-bold">⚙️ Workout Settings</h2>
+                <h2 className="text-2xl font-bold">Workout Settings</h2>
                 <button
                   onClick={() => setShowWorkoutSettings(false)}
-                  className="text-slate-400 hover:text-white text-xl p-1 rounded hover:bg-slate-800"
+                  className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-all"
                 >
                   ✕
                 </button>
               </div>
 
-              <div className="space-y-4">
-                {/* BASIC SETTINGS */}
-                <div className="border-b border-slate-700 pb-4">
-                  <h3 className="text-sm font-bold text-slate-300 mb-3">BASIC</h3>
-                  
-                  <label className="flex items-center gap-3 p-3 bg-slate-800/50 rounded-lg cursor-pointer mb-2">
-                    <input
-                      type="checkbox"
-                      checked={autoStartRest}
-                      onChange={(e) => setAutoStartRest(e.target.checked)}
-                      className="w-5 h-5 accent-emerald-500 rounded"
-                    />
-                    <span className="text-sm">Auto Start Rest Timer</span>
-                  </label>
-
-                  <label className="flex items-center gap-3 p-3 bg-slate-800/50 rounded-lg cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={isDeload}
-                      onChange={(e) => setIsDeload(e.target.checked)}
-                      className="w-5 h-5 accent-amber-500 rounded"
-                    />
-                    <span className="text-sm font-medium text-amber-400">🔥 Deload Week</span>
-                  </label>
-                </div>
-
-                {/* ADVANCED FEATURES */}
-                <div className="border-b border-slate-700 pb-4">
-                  <h3 className="text-sm font-bold text-emerald-400 mb-3">🔬 ADVANCED FEATURES</h3>
-                  
-                  <label className="flex items-center gap-3 p-3 bg-emerald-950/20 border border-emerald-900/50 rounded-lg cursor-pointer mb-2 hover:bg-emerald-950/30">
-                    <input
-                      type="checkbox"
-                      checked={showRPE}
-                      onChange={(e) => setShowRPE(e.target.checked)}
-                      className="w-5 h-5 accent-emerald-500 rounded"
-                    />
-                    <div className="flex-1">
-                      <span className="text-sm font-medium">Show RPE</span>
-                      <p className="text-xs text-slate-400">Rate of Perceived Exertion (1-10)</p>
-                    </div>
-                  </label>
-
-                  <label className="flex items-center gap-3 p-3 bg-emerald-950/20 border border-emerald-900/50 rounded-lg cursor-pointer mb-2 hover:bg-emerald-950/30">
-                    <input
-                      type="checkbox"
-                      checked={show1RM}
-                      onChange={(e) => setShow1RM(e.target.checked)}
-                      className="w-5 h-5 accent-emerald-500 rounded"
-                    />
-                    <div className="flex-1">
-                      <span className="text-sm font-medium">Show 1RM Calculator</span>
-                      <p className="text-xs text-slate-400">Estimated 1 Rep Max</p>
-                    </div>
-                  </label>
-
-                  <label className="flex items-center gap-3 p-3 bg-emerald-950/20 border border-emerald-900/50 rounded-lg cursor-pointer hover:bg-emerald-950/30">
-                    <input
-                      type="checkbox"
-                      checked={showPlateCalculator}
-                      onChange={(e) => setShowPlateCalculator(e.target.checked)}
-                      className="w-5 h-5 accent-emerald-500 rounded"
-                    />
-                    <div className="flex-1">
-                      <span className="text-sm font-medium">Show Plate Calculator</span>
-                      <p className="text-xs text-slate-400">Calculate plates needed (e.g., 20kg + 5kg × 2)</p>
-                    </div>
-                  </label>
-                </div>
-
-                {/* DEFAULT REST TIME */}
-                <div>
-                  <label className="block text-xs text-slate-400 mb-2">Default Rest Time</label>
+              {/* Advanced Features - Collapsible */}
+              <div className="mb-6">
+                <button
+                  onClick={() => setShowAdvancedFeatures(!showAdvancedFeatures)}
+                  className="w-full flex items-center justify-between p-4 bg-slate-800 hover:bg-slate-750 rounded-lg transition-all"
+                >
                   <div className="flex items-center gap-2">
-                    <input
-                      type="number"
-                      value={Math.round(customRestSeconds / 60)}
-                      onChange={(e) => setCustomRestSeconds(parseInt(e.target.value) * 60)}
-                      min={0.5}
-                      step={0.5}
-                      className="flex-1 rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm focus:border-emerald-500 outline-none"
-                    />
-                    <span className="text-slate-500 px-2">min</span>
+                    <span className="text-xl">⚙️</span>
+                    <span className="font-bold text-lg">Advanced Features</span>
                   </div>
-                </div>
+                  <span className="text-slate-400">
+                    {showAdvancedFeatures ? '▼' : '▶'}
+                  </span>
+                </button>
 
-                {/* Superset Mode */}
-                <div className="mt-4 border-t border-slate-700 pt-4">
-                  <div className="flex items-center justify-between p-3 bg-slate-800 rounded-lg">
-                    <div>
-                      <div className="font-medium">Superset Mode</div>
-                      <div className="text-xs text-slate-400">Link exercises together</div>
+                {/* Advanced Features Content */}
+                {showAdvancedFeatures && (
+                  <div className="mt-3 space-y-3 bg-slate-800/50 rounded-lg p-4 border border-slate-700">
+                    {/* Deload Week */}
+                    <div className="flex items-center justify-between p-3 bg-slate-900 rounded-lg">
+                      <div>
+                        <div className="font-medium">🔥 Deload Week</div>
+                        <div className="text-xs text-slate-400">Reduce intensity</div>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={isDeload}
+                          onChange={(e) => setIsDeload(e.target.checked)}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-slate-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                      </label>
                     </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={showSupersetOptions}
-                        onChange={(e) => setShowSupersetOptions(e.target.checked)}
-                        className="sr-only peer"
-                      />
-                      <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
-                    </label>
+
+                    {/* Show RPE */}
+                    <div className="flex items-center justify-between p-3 bg-slate-900 rounded-lg">
+                      <div>
+                        <div className="font-medium">Show RPE</div>
+                        <div className="text-xs text-slate-400">Rate of Perceived Exertion (1-10)</div>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={showRPE}
+                          onChange={(e) => setShowRPE(e.target.checked)}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-slate-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                      </label>
+                    </div>
+
+                    {/* Show 1RM Calculator */}
+                    <div className="flex items-center justify-between p-3 bg-slate-900 rounded-lg">
+                      <div>
+                        <div className="font-medium">Show 1RM Calculator</div>
+                        <div className="text-xs text-slate-400">Estimated 1 Rep Max</div>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={show1RM}
+                          onChange={(e) => setShow1RM(e.target.checked)}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-slate-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                      </label>
+                    </div>
+
+                    {/* Show Plate Calculator */}
+                    <div className="flex items-center justify-between p-3 bg-slate-900 rounded-lg">
+                      <div>
+                        <div className="font-medium">Show Plate Calculator</div>
+                        <div className="text-xs text-slate-400">Calculate plates needed (e.g., 20kg + 5kg × 2)</div>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={showPlateCalculator}
+                          onChange={(e) => setShowPlateCalculator(e.target.checked)}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-slate-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                      </label>
+                    </div>
+
+                    {/* Default Rest Time */}
+                    <div className="p-3 bg-slate-900 rounded-lg">
+                      <label className="text-sm font-medium block mb-2">Default Rest Time</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          value={defaultRestTime}
+                          onChange={(e) => setDefaultRestTime(Number(e.target.value))}
+                          className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-500"
+                          min="30"
+                          max="600"
+                          step="15"
+                        />
+                        <span className="text-sm text-slate-400">seconds</span>
+                      </div>
+                    </div>
+
+                    {/* Superset Mode */}
+                    <div className="flex items-center justify-between p-3 bg-slate-900 rounded-lg">
+                      <div>
+                        <div className="font-medium">Superset Mode</div>
+                        <div className="text-xs text-slate-400">Link exercises together</div>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={showSupersetOptions}
+                          onChange={(e) => setShowSupersetOptions(e.target.checked)}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-slate-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                      </label>
+                    </div>
                   </div>
-
-                  <div className="mt-3">
-                    <button
-                      onClick={() => {
-                        setPlateCalcWeight(60);
-                        setShowPlateCalcModal(true);
-                      }}
-                      className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-all"
-                    >
-                      🏋️ Plate Calculator
-                    </button>
-                  </div>
-                </div>
-
-                {/* Theme Toggle */}
-                <div className="mt-4">
-                  <ThemeToggle />
-                </div>
-
+                )}
               </div>
 
+              {/* Standalone Plate Calculator Button */}
               <button
-                onClick={() => setShowWorkoutSettings(false)}
-                className="w-full mt-6 py-3 rounded-lg bg-emerald-500/20 border border-emerald-500/50 hover:bg-emerald-500/30 text-emerald-400 font-medium transition-all"
+                onClick={() => {
+                  setShowPlateCalcModal(true);
+                  setShowWorkoutSettings(false);
+                }}
+                className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold transition-all flex items-center justify-center gap-2"
+              >
+                <span className="text-xl">🏋️</span>
+                <span>Plate Calculator</span>
+              </button>
+
+              {/* Close Button */}
+              <button
+                onClick={() => {
+                  setCustomRestSeconds(defaultRestTime);
+                  setShowWorkoutSettings(false);
+                }}
+                className="w-full mt-4 py-3 bg-slate-800 hover:bg-slate-700 rounded-lg transition-all"
               >
                 Done
               </button>
