@@ -30,13 +30,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
     const resolved = getResolvedTheme();
     
-    // Only update state if it changed
-    setResolvedTheme(prev => {
-      if (prev !== resolved) {
-        return resolved;
-      }
-      return prev;
-    });
+    setResolvedTheme(resolved);
 
     // Update document class
     document.documentElement.classList.remove('dark', 'light');

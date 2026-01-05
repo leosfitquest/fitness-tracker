@@ -11,7 +11,7 @@ interface ActiveWorkoutCardProps {
   note?: string;
   // Superset Props
   isSupersetWith?: string;
-  supersetGroup?: string;
+  // supersetGroup?: string;
   onToggleSuperset?: () => void;
   
   onSetChange: (index: number, field: string, value: any) => void;
@@ -41,7 +41,7 @@ export function ActiveWorkoutCard({
   showPlateCalculator,
   allExercises,
   isSupersetWith,
-  supersetGroup,
+  // supersetGroup,
   onToggleSuperset,
 }: ActiveWorkoutCardProps) {
   const [showInstructions, setShowInstructions] = useState(false);

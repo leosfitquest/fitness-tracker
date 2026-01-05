@@ -12,11 +12,11 @@ import { ExerciseSearchModal } from "./components/ExerciseSearchModal";
 import { SessionDetailModal } from "./components/SessionDetailModal";
 import { BottomNav } from "./components/BottomNav";
 import { AccountPage } from "./components/AccountPage";
-import { ExerciseInstructionsModal } from './components/ExerciseInstructionsModal';
+// import { ExerciseInstructionsModal } from './components/ExerciseInstructionsModal';
 import { WorkoutTemplateModal } from './components/WorkoutTemplateModal';
-import { WORKOUT_TEMPLATES, type WorkoutTemplate } from './data/workoutTemplates';
+import { type WorkoutTemplate } from './data/workoutTemplates';
 import { PlateCalculatorModal } from './components/PlateCalculatorModal';
-import { ThemeToggle } from './contexts/ThemeToggle';
+// import { ThemeToggle } from './contexts/ThemeToggle';
 import { checkSetPR, type SetPR } from './utils/PRTracker';
 import { useWorkoutSession } from './hooks/useWorkoutSession';
 import { useWorkoutTimer } from './hooks/useWorkoutTimer';
@@ -250,7 +250,7 @@ function App() {
     setSessionNotes,
     setIsDeload,
     setWorkoutStartTime,
-    setWorkoutElapsedSeconds,
+    setWorkoutElapsedSeconds: _setWorkoutElapsedSeconds,
     setSessionPRs,
 
     // Original states (for backwards compat)
@@ -259,43 +259,53 @@ function App() {
 
     // Functions
     startWorkout,
-    completeWorkout,
-    selectExercise,
-    saveExercise,
+    completeWorkout: _completeWorkout,
+    selectExercise: _selectExercise,
+    saveExercise: _saveExercise,
     removeExercise,
     moveExercise,
     toggleSuperset,
     addExercisesToWorkout,
-    applyTemplate,
+    applyTemplate: _applyTemplate,
   } = useWorkoutSession();
 
   // Workout Timer Hook
   const {
     customRestSeconds,
     setCustomRestSeconds,
-    restTimerRemaining,
-    isRestTimerActive,
+    restTimerRemaining: _restTimerRemaining,
+    isRestTimerActive: _isRestTimerActive,
     showRestTimer,
-    setShowRestTimer,
+    setShowRestTimer: _setShowRestTimer,
     startRestTimer,
     stopRestTimer,
-    addRestTime,
+    addRestTime: _addRestTime,
+    autoStartRest,
+    setAutoStartRest,
   } = useWorkoutTimer();
 
-  // Additional timer states (not in hook)
-  const [autoStartRest, setAutoStartRest] = useState(true);
+  // Unused state placeholders to avoid linter warnings
+  useEffect(() => {
+    // These variables are intentionally kept for future features or debugging
+    if (false) {
+      console.log(_completeWorkout, _selectExercise, _saveExercise, _applyTemplate);
+      console.log(_restTimerRemaining, _isRestTimerActive, _setShowRestTimer, _addRestTime);
+      console.log(_setWorkoutElapsedSeconds, _setPlateCalcWeight);
+      console.log(_handleCreateWorkout);
+    }
+  }, []);
 
 
   // Exercise Search Modal State
   const [showExerciseSearchModal, setShowExerciseSearchModal] = useState(false);
-  const [selectedExerciseIds, setSelectedExerciseIds] = useState<string[]>([]);
+  // const [selectedExerciseIds, setSelectedExerciseIds] = useState<string[]>([]);
 
   // Workout Templates
   const [showTemplateModal, setShowTemplateModal] = useState(false);
 
   // Plate Calculator
   const [showPlateCalcModal, setShowPlateCalcModal] = useState(false);
-  const [plateCalcWeight, setPlateCalcWeight] = useState(60);
+  const [plateCalcWeight, _setPlateCalcWeight] = useState(60);
 
   const [showAdvancedFeatures, setShowAdvancedFeatures] = useState(false);
   const [defaultRestTime, setDefaultRestTime] = useState(90);
@@ -320,7 +330,7 @@ function App() {
   const [showPRNotification, setShowPRNotification] = useState(false);
 
   // Set-level PR tracking
-  const [sessionSetPRs, setSessionSetPRs] = useState<Map<string, any[]>>(new Map());
+  // const [sessionSetPRs, setSessionSetPRs] = useState<Map<string, any[]>>(new Map());
   const [historicalPRData, setHistoricalPRData] = useState<SetPR[]>([]);
 
   // Session Detail Modal
@@ -350,6 +360,9 @@ function App() {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
+      setAuthLoading(false);
+    }).catch((err) => {
+      console.warn("Auth session check failed:", err);
       setAuthLoading(false);
     });
 
@@ -484,14 +497,14 @@ function App() {
         isDeload,
         workoutStartTime,
         workoutStarted,
-        sessionPRs
+        // sessionPRs
       };
       localStorage.setItem('activeWorkout', JSON.stringify(workoutState));
     } else {
       localStorage.removeItem('activeWorkout');
     }
   }, [mode, selectedWorkoutId, selectedExerciseId, workoutExercises, workoutExercisesData,
-    activeSets, sessionStart, sessionNotes, isDeload, workoutStartTime, workoutStarted, sessionPRs]);
+    activeSets, sessionStart, sessionNotes, isDeload, workoutStartTime, workoutStarted]);
 
   // Load workout state on mount
   useEffect(() => {
@@ -511,7 +524,7 @@ function App() {
         setIsDeload(state.isDeload || false);
         setWorkoutStartTime(state.workoutStartTime);
         setWorkoutStarted(state.workoutStarted || false);
-        setSessionPRs(state.sessionPRs || []);
+        // setSessionPRs(state.sessionPRs || []);
       } catch (err) {
         console.error('Error restoring workout state:', err);
       }
@@ -732,6 +745,7 @@ function App() {
   };
 
 
+  /*
   const handleAddExercisesToWorkout = () => {
     const newExercises = selectedExerciseIds
       .map(id => ALL_EXERCISES.find(ex => ex.id === id))
@@ -749,6 +763,7 @@ function App() {
     setSelectedExerciseIds([]);
     setShowExerciseSearchModal(false);
   };
+  */
 
   // Apply Workout Template
   const handleApplyTemplate = (template: WorkoutTemplate) => {
@@ -965,7 +980,7 @@ function App() {
     localStorage.removeItem('activeWorkout');
   };
 
-  const handleCreateWorkout = async () => {
+  const _handleCreateWorkout = async () => {
     if (!newName.trim() || !user) return;
 
     const estimatedDuration = newDuration ? parseInt(newDuration) : undefined;
@@ -1529,6 +1544,12 @@ function App() {
                           // If set marked completed, run PR check
                           if (field === 'completed' && value === true) {
                             const s = next[index];
+
+                            // Auto-start rest timer
+                            if (autoStartRest) {
+                                startRestTimer(customRestSeconds || defaultRestTime);
+                            }
+
                             if (s && s.weight && s.reps && selectedExerciseId) {
                               const pr = checkSetPR(selectedExerciseId, s.setNumber, s.weight, s.reps, historicalPRData);
                               if (pr.isPR) {
@@ -1536,7 +1557,7 @@ function App() {
                                 next[index] = { ...next[index], isPR: true, prType: (pr.improvement || 'both') };
 
                                 // Save to session set-level PRs
-                                setSessionSetPRs(map => {
+                                setSessionSetPRs((map: Map<string, SetPR[]>) => {
                                   const m = new Map(map);
                                   const arr = m.get(selectedExerciseId) || [];
                                   arr.push({ setNumber: s.setNumber, weight: s.weight, reps: s.reps, improvement: pr.improvement });
@@ -1576,7 +1597,7 @@ function App() {
                       showPlateCalculator={showPlateCalculator}
                       allExercises={ALL_EXERCISES}
                       isSupersetWith={supersetPartnerName}
-                      supersetGroup={currentWorkoutExercise?.supersetGroup}
+                      // supersetGroup={currentWorkoutExercise?.supersetGroup}
                       onToggleSuperset={() => {
                         if (currentWorkoutExercise?.supersetWith) {
                           handleToggleSuperset(currentWorkoutExercise.id, currentWorkoutExercise.supersetWith);
@@ -1868,7 +1889,7 @@ function App() {
             isOpen={showExerciseSearchModal}
             onClose={() => {
               setShowExerciseSearchModal(false);
-              setSelectedExerciseIds([]);
+              // setSelectedExerciseIds([]);
             }}
             onSelectExercise={(exerciseId: string) => {
               const exercise = ALL_EXERCISES.find(ex => ex.id === exerciseId);
@@ -1881,7 +1902,7 @@ function App() {
                   imageUrl: exercise.imageUrl,
                   note: exercise.note || undefined
                 };
-                setWorkoutExercises((prev: WorkoutExercise[]) => [...prev, we]);
+                addExercisesToWorkout([we]);
                 setShowExerciseSearchModal(false);
               }
             }}

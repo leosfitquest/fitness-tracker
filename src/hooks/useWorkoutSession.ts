@@ -273,12 +273,11 @@ export function useWorkoutSession() {
     updateSet,
     addSet,
     addExercises,
-    removeExercise,
-    moveExercise,
-    toggleSuperset,
-    saveExerciseData,
+    // removeExercise, // Already exposed above
+    // moveExercise,   // Already exposed above
+    // toggleSuperset, // Already exposed above
+    // saveExerciseData, // Also exposed as saveExercise
     cancelSession,
     restoreSession,
-    setWorkoutElapsedSeconds, // Exposed for the timer interval in UI
   };
 }

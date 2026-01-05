@@ -5,6 +5,7 @@ export function useWorkoutTimer(defaultRestTime: number = 90) {
   const [customRestSeconds, setCustomRestSeconds] = useState(defaultRestTime);
   const [restTimerRemaining, setRestTimerRemaining] = useState(0);
   const [isRestTimerActive, setIsRestTimerActive] = useState(false);
+  const [autoStartRest, setAutoStartRest] = useState(true);
   
   const timerRef = useRef<number | null>(null);
 
@@ -54,5 +55,7 @@ export function useWorkoutTimer(defaultRestTime: number = 90) {
     startRestTimer,
     stopRestTimer,
     addRestTime,
+    autoStartRest,
+    setAutoStartRest,
   };
 }
