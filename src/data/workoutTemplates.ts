@@ -3,11 +3,11 @@ export interface WorkoutTemplate {
   name: string;
   description: string;
   category: 'beginner' | 'intermediate' | 'advanced';
-  frequency: string; // "3x/week", "6x/week", etc.
+  frequency: string;
   exercises: {
     exerciseName: string;
     sets: number;
-    repsRange: string; // "8-12", "5-8", etc.
+    repsRange: string;
     notes?: string;
   }[];
 }
@@ -24,9 +24,9 @@ export const WORKOUT_TEMPLATES: WorkoutTemplate[] = [
       { exerciseName: 'Barbell Bench Press', sets: 4, repsRange: '6-8' },
       { exerciseName: 'Incline Dumbbell Press', sets: 3, repsRange: '8-12' },
       { exerciseName: 'Dumbbell Shoulder Press', sets: 3, repsRange: '8-12' },
-      { exerciseName: 'Lateral Raise (Dumbbell)', sets: 3, repsRange: '12-15' },
-      { exerciseName: 'Triceps Pushdown (Cable)', sets: 3, repsRange: '10-12' },
-      { exerciseName: 'Overhead Triceps Extension (Dumbbell)', sets: 3, repsRange: '10-12' },
+      { exerciseName: 'Lateral Raise', sets: 3, repsRange: '12-15' },
+      { exerciseName: 'Triceps Pushdown', sets: 3, repsRange: '10-12' },
+      { exerciseName: 'Overhead Triceps Extension', sets: 3, repsRange: '10-12' },
     ],
   },
   {
@@ -36,12 +36,12 @@ export const WORKOUT_TEMPLATES: WorkoutTemplate[] = [
     category: 'intermediate',
     frequency: '2x/week',
     exercises: [
-      { exerciseName: 'Deadlift (Barbell)', sets: 3, repsRange: '5-8' },
+      { exerciseName: 'Deadlift', sets: 3, repsRange: '5-8' },
       { exerciseName: 'Pull Up', sets: 3, repsRange: '8-12' },
       { exerciseName: 'Barbell Row', sets: 4, repsRange: '8-10' },
-      { exerciseName: 'Lat Pulldown (Cable)', sets: 3, repsRange: '10-12' },
+      { exerciseName: 'Lat Pulldown', sets: 3, repsRange: '10-12' },
       { exerciseName: 'Barbell Curl', sets: 3, repsRange: '8-12' },
-      { exerciseName: 'Hammer Curl (Dumbbell)', sets: 3, repsRange: '10-12' },
+      { exerciseName: 'Hammer Curl', sets: 3, repsRange: '10-12' },
     ],
   },
   {
@@ -51,12 +51,12 @@ export const WORKOUT_TEMPLATES: WorkoutTemplate[] = [
     category: 'intermediate',
     frequency: '1-2x/week',
     exercises: [
-      { exerciseName: 'Squat (Barbell)', sets: 4, repsRange: '6-10' },
-      { exerciseName: 'Romanian Deadlift (Barbell)', sets: 3, repsRange: '8-12' },
+      { exerciseName: 'Squat', sets: 4, repsRange: '6-10' },
+      { exerciseName: 'Romanian Deadlift', sets: 3, repsRange: '8-12' },
       { exerciseName: 'Leg Press', sets: 3, repsRange: '10-15' },
-      { exerciseName: 'Leg Curl (Machine)', sets: 3, repsRange: '10-12' },
-      { exerciseName: 'Leg Extension (Machine)', sets: 3, repsRange: '12-15' },
-      { exerciseName: 'Standing Calf Raise (Machine)', sets: 4, repsRange: '12-15' },
+      { exerciseName: 'Leg Curl', sets: 3, repsRange: '10-12' },
+      { exerciseName: 'Leg Extension', sets: 3, repsRange: '12-15' },
+      { exerciseName: 'Standing Calf Raise', sets: 4, repsRange: '12-15' },
     ],
   },
 
@@ -71,9 +71,9 @@ export const WORKOUT_TEMPLATES: WorkoutTemplate[] = [
       { exerciseName: 'Barbell Bench Press', sets: 4, repsRange: '6-8' },
       { exerciseName: 'Incline Dumbbell Press', sets: 3, repsRange: '8-12' },
       { exerciseName: 'Dumbbell Shoulder Press', sets: 3, repsRange: '8-12' },
-      { exerciseName: 'Lateral Raise (Dumbbell)', sets: 3, repsRange: '12-15' },
+      { exerciseName: 'Lateral Raise', sets: 3, repsRange: '12-15' },
       { exerciseName: 'Barbell Curl', sets: 3, repsRange: '8-12' },
-      { exerciseName: 'Hammer Curl (Dumbbell)', sets: 3, repsRange: '10-12' },
+      { exerciseName: 'Hammer Curl', sets: 3, repsRange: '10-12' },
     ],
   },
   {
@@ -83,12 +83,12 @@ export const WORKOUT_TEMPLATES: WorkoutTemplate[] = [
     category: 'intermediate',
     frequency: '2x/week',
     exercises: [
-      { exerciseName: 'Deadlift (Barbell)', sets: 3, repsRange: '5-8' },
+      { exerciseName: 'Deadlift', sets: 3, repsRange: '5-8' },
       { exerciseName: 'Pull Up', sets: 3, repsRange: '8-12' },
       { exerciseName: 'Barbell Row', sets: 4, repsRange: '8-10' },
-      { exerciseName: 'Lat Pulldown (Cable)', sets: 3, repsRange: '10-12' },
-      { exerciseName: 'Triceps Pushdown (Cable)', sets: 3, repsRange: '10-12' },
-      { exerciseName: 'Overhead Triceps Extension (Dumbbell)', sets: 3, repsRange: '10-12' },
+      { exerciseName: 'Lat Pulldown', sets: 3, repsRange: '10-12' },
+      { exerciseName: 'Triceps Pushdown', sets: 3, repsRange: '10-12' },
+      { exerciseName: 'Overhead Triceps Extension', sets: 3, repsRange: '10-12' },
     ],
   },
 
@@ -105,7 +105,7 @@ export const WORKOUT_TEMPLATES: WorkoutTemplate[] = [
       { exerciseName: 'Dumbbell Shoulder Press', sets: 3, repsRange: '8-12' },
       { exerciseName: 'Pull Up', sets: 3, repsRange: '8-12' },
       { exerciseName: 'Barbell Curl', sets: 3, repsRange: '8-12' },
-      { exerciseName: 'Triceps Pushdown (Cable)', sets: 3, repsRange: '10-12' },
+      { exerciseName: 'Triceps Pushdown', sets: 3, repsRange: '10-12' },
     ],
   },
   {
@@ -115,11 +115,11 @@ export const WORKOUT_TEMPLATES: WorkoutTemplate[] = [
     category: 'intermediate',
     frequency: '2x/week',
     exercises: [
-      { exerciseName: 'Squat (Barbell)', sets: 4, repsRange: '6-10' },
-      { exerciseName: 'Romanian Deadlift (Barbell)', sets: 3, repsRange: '8-12' },
+      { exerciseName: 'Squat', sets: 4, repsRange: '6-10' },
+      { exerciseName: 'Romanian Deadlift', sets: 3, repsRange: '8-12' },
       { exerciseName: 'Leg Press', sets: 3, repsRange: '10-15' },
-      { exerciseName: 'Leg Curl (Machine)', sets: 3, repsRange: '10-12' },
-      { exerciseName: 'Standing Calf Raise (Machine)', sets: 4, repsRange: '12-15' },
+      { exerciseName: 'Leg Curl', sets: 3, repsRange: '10-12' },
+      { exerciseName: 'Standing Calf Raise', sets: 4, repsRange: '12-15' },
     ],
   },
 
@@ -131,13 +131,13 @@ export const WORKOUT_TEMPLATES: WorkoutTemplate[] = [
     category: 'beginner',
     frequency: '3x/week',
     exercises: [
-      { exerciseName: 'Squat (Barbell)', sets: 3, repsRange: '8-12' },
+      { exerciseName: 'Squat', sets: 3, repsRange: '8-12' },
       { exerciseName: 'Barbell Bench Press', sets: 3, repsRange: '8-12' },
       { exerciseName: 'Barbell Row', sets: 3, repsRange: '8-12' },
       { exerciseName: 'Dumbbell Shoulder Press', sets: 3, repsRange: '8-12' },
-      { exerciseName: 'Romanian Deadlift (Barbell)', sets: 3, repsRange: '8-12' },
+      { exerciseName: 'Romanian Deadlift', sets: 3, repsRange: '8-12' },
       { exerciseName: 'Barbell Curl', sets: 2, repsRange: '10-12' },
-      { exerciseName: 'Triceps Pushdown (Cable)', sets: 2, repsRange: '10-12' },
+      { exerciseName: 'Triceps Pushdown', sets: 2, repsRange: '10-12' },
     ],
   },
 
@@ -152,9 +152,9 @@ export const WORKOUT_TEMPLATES: WorkoutTemplate[] = [
       { exerciseName: 'Barbell Bench Press', sets: 4, repsRange: '8-12' },
       { exerciseName: 'Incline Dumbbell Press', sets: 4, repsRange: '8-12' },
       { exerciseName: 'Dumbbell Flyes', sets: 3, repsRange: '10-12' },
-      { exerciseName: 'Wide Grip Pull Up', sets: 4, repsRange: '8-12' },
+      { exerciseName: 'Pull Up', sets: 4, repsRange: '8-12' },
       { exerciseName: 'Barbell Row', sets: 4, repsRange: '8-12' },
-      { exerciseName: 'Deadlift (Barbell)', sets: 3, repsRange: '6-8' },
+      { exerciseName: 'Deadlift', sets: 3, repsRange: '6-8' },
     ],
   },
   {
@@ -165,12 +165,12 @@ export const WORKOUT_TEMPLATES: WorkoutTemplate[] = [
     frequency: '2x/week',
     exercises: [
       { exerciseName: 'Dumbbell Shoulder Press', sets: 4, repsRange: '8-12' },
-      { exerciseName: 'Lateral Raise (Dumbbell)', sets: 4, repsRange: '12-15' },
-      { exerciseName: 'Rear Delt Fly (Dumbbell)', sets: 3, repsRange: '12-15' },
+      { exerciseName: 'Lateral Raise', sets: 4, repsRange: '12-15' },
+      { exerciseName: 'Rear Delt Fly', sets: 3, repsRange: '12-15' },
       { exerciseName: 'Barbell Curl', sets: 4, repsRange: '8-12' },
-      { exerciseName: 'Hammer Curl (Dumbbell)', sets: 3, repsRange: '10-12' },
-      { exerciseName: 'Close Grip Bench Press (Barbell)', sets: 4, repsRange: '8-12' },
-      { exerciseName: 'Overhead Triceps Extension (Dumbbell)', sets: 3, repsRange: '10-12' },
+      { exerciseName: 'Hammer Curl', sets: 3, repsRange: '10-12' },
+      { exerciseName: 'Close Grip Bench Press', sets: 4, repsRange: '8-12' },
+      { exerciseName: 'Overhead Triceps Extension', sets: 3, repsRange: '10-12' },
     ],
   },
   {
@@ -180,12 +180,12 @@ export const WORKOUT_TEMPLATES: WorkoutTemplate[] = [
     category: 'advanced',
     frequency: '2x/week',
     exercises: [
-      { exerciseName: 'Squat (Barbell)', sets: 5, repsRange: '8-12' },
+      { exerciseName: 'Squat', sets: 5, repsRange: '8-12' },
       { exerciseName: 'Leg Press', sets: 4, repsRange: '12-15' },
-      { exerciseName: 'Romanian Deadlift (Barbell)', sets: 4, repsRange: '8-12' },
-      { exerciseName: 'Leg Curl (Machine)', sets: 4, repsRange: '10-12' },
-      { exerciseName: 'Leg Extension (Machine)', sets: 4, repsRange: '12-15' },
-      { exerciseName: 'Standing Calf Raise (Machine)', sets: 5, repsRange: '15-20' },
+      { exerciseName: 'Romanian Deadlift', sets: 4, repsRange: '8-12' },
+      { exerciseName: 'Leg Curl', sets: 4, repsRange: '10-12' },
+      { exerciseName: 'Leg Extension', sets: 4, repsRange: '12-15' },
+      { exerciseName: 'Standing Calf Raise', sets: 5, repsRange: '15-20' },
     ],
   },
 
@@ -197,9 +197,9 @@ export const WORKOUT_TEMPLATES: WorkoutTemplate[] = [
     category: 'advanced',
     frequency: '1x every 4-7 days',
     exercises: [
-      { exerciseName: 'Squat (Barbell)', sets: 1, repsRange: '6-10', notes: 'To absolute failure' },
-      { exerciseName: 'Leg Extension (Machine)', sets: 1, repsRange: '6-10', notes: 'Pre-exhaust, then to failure' },
-      { exerciseName: 'Standing Calf Raise (Machine)', sets: 1, repsRange: '6-10', notes: 'To failure' },
+      { exerciseName: 'Squat', sets: 1, repsRange: '6-10', notes: 'To absolute failure' },
+      { exerciseName: 'Leg Extension', sets: 1, repsRange: '6-10', notes: 'Pre-exhaust, then to failure' },
+      { exerciseName: 'Standing Calf Raise', sets: 1, repsRange: '6-10', notes: 'To failure' },
       { exerciseName: 'Barbell Bench Press', sets: 1, repsRange: '6-10', notes: 'To failure' },
       { exerciseName: 'Dumbbell Flyes', sets: 1, repsRange: '6-10', notes: 'Pre-exhaust' },
     ],
@@ -211,11 +211,11 @@ export const WORKOUT_TEMPLATES: WorkoutTemplate[] = [
     category: 'advanced',
     frequency: '1x every 4-7 days',
     exercises: [
-      { exerciseName: 'Deadlift (Barbell)', sets: 1, repsRange: '6-10', notes: 'To absolute failure' },
-      { exerciseName: 'Lat Pulldown (Cable)', sets: 1, repsRange: '6-10', notes: 'To failure' },
+      { exerciseName: 'Deadlift', sets: 1, repsRange: '6-10', notes: 'To absolute failure' },
+      { exerciseName: 'Lat Pulldown', sets: 1, repsRange: '6-10', notes: 'To failure' },
       { exerciseName: 'Dumbbell Shoulder Press', sets: 1, repsRange: '6-10', notes: 'To failure' },
-      { exerciseName: 'Lateral Raise (Dumbbell)', sets: 1, repsRange: '6-10', notes: 'Pre-exhaust' },
-      { exerciseName: 'Close Grip Bench Press (Barbell)', sets: 1, repsRange: '6-10', notes: 'To failure' },
+      { exerciseName: 'Lateral Raise', sets: 1, repsRange: '6-10', notes: 'Pre-exhaust' },
+      { exerciseName: 'Close Grip Bench Press', sets: 1, repsRange: '6-10', notes: 'To failure' },
       { exerciseName: 'Barbell Curl', sets: 1, repsRange: '6-10', notes: 'To failure' },
     ],
   },
