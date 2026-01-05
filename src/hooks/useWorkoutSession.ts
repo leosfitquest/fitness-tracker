@@ -1,18 +1,24 @@
 import { useState, useEffect } from 'react';
-import type { Workout, WorkoutExercise, ExerciseSessionData, ActiveSet, WorkoutSessionLog } from '../App';
-import { supabase } from '../lib/supabase';
+import type { Workout, WorkoutExercise, ExerciseSessionData, ActiveSet } from '../App';
 
-export function useWorkoutSession(userId: string | undefined) {
+export function useWorkoutSession() {
+  // UI Mode + selection state
+  const [mode, setMode] = useState<'overview' | 'active'>('overview');
+  const [selectedWorkoutId, setSelectedWorkoutId] = useState<string | null>(null);
+  const [selectedExerciseId, setSelectedExerciseId] = useState<string | null>(null);
+
   // Session State
   const [workoutStarted, setWorkoutStarted] = useState(false);
   const [activeWorkoutId, setActiveWorkoutId] = useState<string | null>(null);
   const [sessionStart, setSessionStart] = useState<string | null>(null);
   const [sessionNotes, setSessionNotes] = useState("");
   const [isDeload, setIsDeload] = useState(false);
+  const [sessionPRs, setSessionPRs] = useState<any[]>([]);
   
   // Data State
   const [workoutExercises, setWorkoutExercises] = useState<WorkoutExercise[]>([]);
   const [workoutExercisesData, setWorkoutExercisesData] = useState<Record<string, ExerciseSessionData>>({});
+  const [activeSets, setActiveSets] = useState<ActiveSet[]>([]);
   
   // Timer for duration
   const [workoutStartTime, setWorkoutStartTime] = useState<number | null>(null);
@@ -215,18 +221,54 @@ export function useWorkoutSession(userId: string | undefined) {
   };
 
   return {
+    // State values
+    mode,
+    selectedWorkoutId,
+    selectedExerciseId,
+    workoutExercises,
+    workoutExercisesData,
+    activeSets,
+    sessionStart,
+    sessionNotes,
+    isDeload,
+    workoutStartTime,
+    workoutElapsedSeconds,
+    sessionPRs,
+
+    // ⭐ SETTERS
+    setMode,
+    setSelectedWorkoutId,
+    setSelectedExerciseId,
+    setWorkoutExercises,
+    setWorkoutExercisesData,
+    setActiveSets,
+    setSessionStart,
+    setSessionNotes,
+    setIsDeload,
+    setWorkoutStartTime,
+    setWorkoutElapsedSeconds,
+    setSessionPRs,
+
+    // Original states (for backwards compat)
     workoutStarted,
     setWorkoutStarted,
     activeWorkoutId,
-    sessionStart,
-    sessionNotes,
-    setSessionNotes,
-    isDeload,
-    setIsDeload,
-    workoutExercises,
-    workoutExercisesData,
-    workoutStartTime,
-    workoutElapsedSeconds,
+
+    // Functions (aliases + original)
+    startWorkout: startSession,
+    completeWorkout: cancelSession,
+    selectExercise: (id: string) => setSelectedExerciseId(id),
+    saveExercise: saveExerciseData,
+    removeExercise,
+    moveExercise,
+    toggleSuperset,
+    addExercisesToWorkout: addExercises,
+    applyTemplate: () => {
+      // Placeholder: callers should map template -> WorkoutExercise[] and call addExercisesToWorkout
+      return;
+    },
+
+    // Low-level helpers
     startSession,
     updateSet,
     addSet,

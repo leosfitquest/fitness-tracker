@@ -2,23 +2,25 @@ import { useState, useEffect, useRef } from 'react';
 
 export function useWorkoutTimer(defaultRestTime: number = 90) {
   const [showRestTimer, setShowRestTimer] = useState(false);
-  const [restSeconds, setRestSeconds] = useState(defaultRestTime);
-  const [remainingSeconds, setRemainingSeconds] = useState(0);
-  const [autoStartRest, setAutoStartRest] = useState(true);
+  const [customRestSeconds, setCustomRestSeconds] = useState(defaultRestTime);
+  const [restTimerRemaining, setRestTimerRemaining] = useState(0);
+  const [isRestTimerActive, setIsRestTimerActive] = useState(false);
   
   const timerRef = useRef<number | null>(null);
 
   const startRestTimer = (seconds: number) => {
-    setRestSeconds(seconds);
-    setRemainingSeconds(seconds);
+    setCustomRestSeconds(seconds);
+    setRestTimerRemaining(seconds);
     setShowRestTimer(true);
-    
+    setIsRestTimerActive(true);
+
     if (timerRef.current) clearInterval(timerRef.current);
-    
+
     timerRef.current = window.setInterval(() => {
-      setRemainingSeconds((prev) => {
+      setRestTimerRemaining((prev) => {
         if (prev <= 1) {
           if (timerRef.current) clearInterval(timerRef.current);
+          setIsRestTimerActive(false);
           return 0;
         }
         return prev - 1;
@@ -29,10 +31,11 @@ export function useWorkoutTimer(defaultRestTime: number = 90) {
   const stopRestTimer = () => {
     if (timerRef.current) clearInterval(timerRef.current);
     setShowRestTimer(false);
+    setIsRestTimerActive(false);
   };
 
-  const addTime = (seconds: number) => {
-    setRemainingSeconds((prev) => prev + seconds);
+  const addRestTime = (seconds: number) => {
+    setRestTimerRemaining((prev) => prev + seconds);
   };
 
   useEffect(() => {
@@ -42,14 +45,14 @@ export function useWorkoutTimer(defaultRestTime: number = 90) {
   }, []);
 
   return {
+    customRestSeconds,
+    setCustomRestSeconds, // ⭐ ADDED
+    restTimerRemaining,
+    isRestTimerActive,
     showRestTimer,
     setShowRestTimer,
-    restSeconds,
-    remainingSeconds,
-    autoStartRest,
-    setAutoStartRest,
     startRestTimer,
     stopRestTimer,
-    addTime,
+    addRestTime,
   };
 }

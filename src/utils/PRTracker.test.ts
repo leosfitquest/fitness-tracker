@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { checkSetPR, SetPR } from '../utils/PRTracker';
+import { checkSetPR, type SetPR } from '../utils/PRTracker';
 
 describe('PRTracker', () => {
   it('should identify a new PR when volume is higher', () => {

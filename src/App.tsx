@@ -14,10 +14,10 @@ import { BottomNav } from "./components/BottomNav";
 import { AccountPage } from "./components/AccountPage";
 import { ExerciseInstructionsModal } from './components/ExerciseInstructionsModal';
 import { WorkoutTemplateModal } from './components/WorkoutTemplateModal';
-import { WORKOUT_TEMPLATES, WorkoutTemplate } from './data/workoutTemplates';
+import { WORKOUT_TEMPLATES, type WorkoutTemplate } from './data/workoutTemplates';
 import { PlateCalculatorModal } from './components/PlateCalculatorModal';
 import { ThemeToggle } from './contexts/ThemeToggle';
-import { checkSetPR, calculateSessionPRs, type SetPR } from './utils/PRTracker';
+import { checkSetPR, type SetPR } from './utils/PRTracker';
 import { useWorkoutSession } from './hooks/useWorkoutSession';
 import { useWorkoutTimer } from './hooks/useWorkoutTimer';
 
@@ -52,7 +52,7 @@ export type Exercise = {
 };
 
 // WorkoutExercise: entries inside a Workout (supports superset metadata)
-interface WorkoutExercise {
+export interface WorkoutExercise {
   id: string; // unique id for the workout entry (we use exercise id by default)
   exerciseId: string; // id referencing the base Exercise
   name: string;
@@ -225,62 +225,65 @@ function App() {
   const [draggedExerciseIndex, setDraggedExerciseIndex] = useState<number | null>(null);
 
   // Active Workout State (Managed by Hook)
-  const session = useWorkoutSession(user?.id);
-  const timer = useWorkoutTimer(90);
-
   const {
-    workoutStarted,
-    setWorkoutStarted, // Added
-    activeWorkoutId: selectedWorkoutId, // Alias to match existing code if possible, or update usage
-    sessionStart,
-    sessionNotes,
-    setSessionNotes,
-    isDeload,
-    setIsDeload,
+    mode,
+    selectedWorkoutId,
+    selectedExerciseId,
     workoutExercises,
     workoutExercisesData,
-    workoutStartTime, // Added
+    activeSets,
+    sessionStart,
+    sessionNotes,
+    isDeload,
+    workoutStartTime,
     workoutElapsedSeconds,
+    sessionPRs,
+
+    // ⭐ SETTERS
+    setMode,
+    setSelectedWorkoutId,
+    setSelectedExerciseId,
+    setWorkoutExercises,
+    setWorkoutExercisesData,
+    setActiveSets,
+    setSessionStart,
+    setSessionNotes,
+    setIsDeload,
+    setWorkoutStartTime,
     setWorkoutElapsedSeconds,
-    startSession,
-    updateSet,
-    addSet,
-    addExercises,
+    setSessionPRs,
+
+    // Original states (for backwards compat)
+    workoutStarted,
+    setWorkoutStarted,
+
+    // Functions
+    startWorkout,
+    completeWorkout,
+    selectExercise,
+    saveExercise,
     removeExercise,
     moveExercise,
     toggleSuperset,
-    saveExerciseData,
-    cancelSession,
-    restoreSession // Added
-  } = session;
+    addExercisesToWorkout,
+    applyTemplate,
+  } = useWorkoutSession();
 
+  // Workout Timer Hook
   const {
+    customRestSeconds,
+    setCustomRestSeconds,
+    restTimerRemaining,
+    isRestTimerActive,
     showRestTimer,
     setShowRestTimer,
-    restSeconds: customRestSeconds, // Alias
-    remainingSeconds: restTimerRemaining, // New var
-    autoStartRest,
-    setAutoStartRest,
     startRestTimer,
     stopRestTimer,
-    addTime: addRestTime
-  } = timer;
+    addRestTime,
+  } = useWorkoutTimer();
 
-  const [mode, setMode] = useState<"overview" | "active">("overview");
-  // const [selectedWorkoutId, setSelectedWorkoutId] = useState<string | null>(null); // Replaced by session.activeWorkoutId
-  const [selectedExerciseId, setSelectedExerciseId] = useState<string | null>(null);
-  // const [workoutExercises, setWorkoutExercises] = useState<WorkoutExercise[]>([]); // Replaced
-  // const [workoutExercisesData, setWorkoutExercisesData] = useState<Record<string, ExerciseSessionData>>({}); // Replaced
-  const [activeSets, setActiveSets] = useState<ActiveSet[]>([
-    { setNumber: 1, weight: null, reps: null, rpe: null, completed: false },
-  ]);
-
-  // const [showRestTimer, setShowRestTimer] = useState(false); // Replaced
-  // const [customRestSeconds, setCustomRestSeconds] = useState(90); // Replaced
-  // const [autoStartRest, setAutoStartRest] = useState(true); // Replaced
-  // const [isDeload, setIsDeload] = useState(false); // Replaced
-  // const [sessionStart, setSessionStart] = useState<string | null>(null); // Replaced
-  // const [sessionNotes, setSessionNotes] = useState(""); // Replaced
+  // Additional timer states (not in hook)
+  const [autoStartRest, setAutoStartRest] = useState(true);
 
 
   // Exercise Search Modal State
@@ -314,7 +317,6 @@ function App() {
   const [showSummary, setShowSummary] = useState(false);
 
   // PR Tracking
-  const [sessionPRs, setSessionPRs] = useState<PersonalRecord[]>([]);
   const [showPRNotification, setShowPRNotification] = useState(false);
 
   // Set-level PR tracking
@@ -327,7 +329,6 @@ function App() {
 
   // Navigation State
   const [currentPage, setCurrentPage] = useState<'dashboard' | 'exercises' | 'account'>('dashboard');
-  // const [workoutStarted, setWorkoutStarted] = useState(false); // Replaced by session.workoutStarted
 
   // Advanced Features Toggles
   const [showRPE, setShowRPE] = useState(false);
@@ -498,12 +499,18 @@ function App() {
     if (savedState && user) {
       try {
         const state = JSON.parse(savedState);
-        setMode("active");
-        
-        restoreSession(state);
-
+        // Restore session state manually
+        setMode('active');
+        setSelectedWorkoutId(state.selectedWorkoutId);
         setSelectedExerciseId(state.selectedExerciseId);
+        setWorkoutExercises(state.workoutExercises || []);
+        setWorkoutExercisesData(state.workoutExercisesData || {});
         setActiveSets(state.activeSets || [{ setNumber: 1, weight: null, reps: null, rpe: null, completed: false }]);
+        setSessionStart(state.sessionStart);
+        setSessionNotes(state.sessionNotes || '');
+        setIsDeload(state.isDeload || false);
+        setWorkoutStartTime(state.workoutStartTime);
+        setWorkoutStarted(state.workoutStarted || false);
         setSessionPRs(state.sessionPRs || []);
       } catch (err) {
         console.error('Error restoring workout state:', err);
@@ -672,10 +679,11 @@ function App() {
         exercises: exercises
     };
 
-    startSession(workoutToStart);
+    startWorkout(workoutToStart);
     
     // Override start state to allow preview
-    setWorkoutStarted(false);
+    setWorkoutStarted(false);  // ← Now uses the newly added state
+
     
     setSelectedExerciseId(null);
     setActiveSets([{ setNumber: 1, weight: null, reps: null, rpe: null, completed: false }]);
@@ -737,7 +745,7 @@ function App() {
         notes: e.note || undefined
       } as WorkoutExercise));
 
-    addExercises(newExercises);
+    addExercisesToWorkout(newExercises);
     setSelectedExerciseIds([]);
     setShowExerciseSearchModal(false);
   };
@@ -769,7 +777,7 @@ function App() {
       .filter(Boolean) as WorkoutExercise[];
 
     // Add to current workout
-    addExercises(templateExercises);
+    addExercisesToWorkout(templateExercises);
     
     // Show success message
     alert(`✅ Added ${templateExercises.length} exercises from "${template.name}"`);
@@ -797,13 +805,17 @@ function App() {
       return sum;
     }, 0);
 
-    saveExerciseData(selectedExerciseId, {
-      name: exercise.name,
-      muscleGroup: exercise.muscleGroup,
-      note: exercise.note,
-      sets: activeSets,
-      volume
-    });
+    setWorkoutExercisesData((prev: Record<string, ExerciseSessionData>) => ({
+      ...prev,
+      [selectedExerciseId]: {
+        exerciseId: selectedExerciseId,
+        name: exercise.name,
+        muscleGroup: exercise.muscleGroup,
+        note: exercise.note,
+        sets: activeSets,
+        volume,
+      },
+    }));
 
     updateExerciseRecord(selectedExerciseId, exercise.name, activeSets, new Date().toISOString());
     setSelectedExerciseId(null);
@@ -912,8 +924,21 @@ function App() {
     setMode("overview");
     setSelectedExerciseId(null);
     setSessionPRs([]);
-    
-    cancelSession();
+
+    // Reset session state manually
+    setMode('overview');
+    setSelectedWorkoutId(null);
+    setSelectedExerciseId(null);
+    setWorkoutExercises([]);
+    setWorkoutExercisesData({});
+    setActiveSets([{ setNumber: 1, weight: null, reps: null, rpe: null, completed: false }]);
+    setSessionStart(null);
+    setSessionNotes('');
+    setIsDeload(false);
+    setWorkoutStartTime(null);
+    setWorkoutStarted(false);
+    setSessionPRs([]);
+
     localStorage.removeItem('activeWorkout');
   };
 
@@ -923,7 +948,20 @@ function App() {
     setSessionPRs([]);
     setShowDiscardConfirm(false);
     
-    cancelSession();
+    // Reset session state
+    setMode('overview');
+    setSelectedWorkoutId(null);
+    setSelectedExerciseId(null);
+    setWorkoutExercises([]);
+    setWorkoutExercisesData({});
+    setActiveSets([{ setNumber: 1, weight: null, reps: null, rpe: null, completed: false }]);
+    setSessionStart(null);
+    setSessionNotes('');
+    setIsDeload(false);
+    setWorkoutStartTime(null);
+    setWorkoutStarted(false);
+    setSessionPRs([]);
+
     localStorage.removeItem('activeWorkout');
   };
 
@@ -1524,14 +1562,13 @@ function App() {
                           completed: false
                         }]);
                       }}
-                      onStartRest={(seconds: number) => {
-                        setCustomRestSeconds(seconds);
-                        setShowRestTimer(true);
-                      }}
+                      onStartRest={startRestTimer}
                       onNoteChange={(note: string) => {
-                        setWorkoutExercises(prev => prev.map(ex => 
-                          ex.id === selectedExerciseId ? { ...ex, note } : ex
-                        ));
+                        setWorkoutExercises((prev: WorkoutExercise[]) => 
+                          prev.map((ex: WorkoutExercise) =>
+                            ex.id === selectedExerciseId ? { ...ex, note } : ex
+                          )
+                        );
                       }}
                       isDeload={isDeload}
                       showRPE={showRPE}
@@ -1844,7 +1881,7 @@ function App() {
                   imageUrl: exercise.imageUrl,
                   note: exercise.note || undefined
                 };
-                setWorkoutExercises(prev => [...prev, we]);
+                setWorkoutExercises((prev: WorkoutExercise[]) => [...prev, we]);
                 setShowExerciseSearchModal(false);
               }
             }}
@@ -1856,7 +1893,7 @@ function App() {
         {showRestTimer && (
           <RestTimer
             initialSeconds={customRestSeconds}
-            onDismiss={() => setShowRestTimer(false)}
+            onDismiss={stopRestTimer}
             autoStart={true}
           />
         )}
