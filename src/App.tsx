@@ -330,7 +330,7 @@ function App() {
   const [showPRNotification, setShowPRNotification] = useState(false);
 
   // Set-level PR tracking
-  // const [sessionSetPRs, setSessionSetPRs] = useState<Map<string, any[]>>(new Map());
+  const [_sessionSetPRs, setSessionSetPRs] = useState<Map<string, SetPR[]>>(new Map());
   const [historicalPRData, setHistoricalPRData] = useState<SetPR[]>([]);
 
   // Session Detail Modal
