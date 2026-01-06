@@ -16,8 +16,16 @@ import { AccountPage } from "./components/AccountPage";
 import { WorkoutTemplateModal } from './components/WorkoutTemplateModal';
 import { type WorkoutTemplate } from './data/workoutTemplates';
 import { PlateCalculatorModal } from './components/PlateCalculatorModal';
-// import { ThemeToggle } from './contexts/ThemeToggle';
+import { ThemeToggle } from './contexts/ThemeToggle';
 import { checkSetPR, type SetPR } from './utils/PRTracker';
+
+// Session-level set PRs recorded during a session
+type SessionSetPR = {
+  setNumber: number;
+  weight: number;
+  reps: number;
+  improvement: 'weight' | 'reps' | 'both' | 'none';
+};
 import { useWorkoutSession } from './hooks/useWorkoutSession';
 import { useWorkoutTimer } from './hooks/useWorkoutTimer';
 
@@ -330,7 +338,7 @@ function App() {
   const [showPRNotification, setShowPRNotification] = useState(false);
 
   // Set-level PR tracking
-  const [_sessionSetPRs, setSessionSetPRs] = useState<Map<string, SetPR[]>>(new Map());
+  const [_sessionSetPRs, setSessionSetPRs] = useState<Map<string, SessionSetPR[]>>(new Map());
   const [historicalPRData, setHistoricalPRData] = useState<SetPR[]>([]);
 
   // Session Detail Modal
@@ -1098,11 +1106,11 @@ function App() {
       .slice(0, 10); // Last 10 sessions
   };
 
-  if (authLoading) return <div className="min-h-screen bg-black text-white flex items-center justify-center">Loading...</div>;
+  if (authLoading) return <div className="min-h-screen bg-white text-slate-900 dark:bg-slate-950 dark:text-white flex items-center justify-center">Loading...</div>;
   if (!user) return <Auth />;
 
   return (
-    <div className="min-h-screen bg-black text-white pb-20">
+    <div className="min-h-screen bg-white text-slate-900 dark:bg-slate-950 dark:text-white pb-20">
       {isLoadingData && (
         <div className="max-w-4xl mx-auto px-6 pt-6">
           <div className="bg-blue-900/20 border border-blue-900 rounded-lg p-3 text-sm">Loading...</div>
@@ -1550,17 +1558,25 @@ function App() {
                                 startRestTimer(customRestSeconds || defaultRestTime);
                             }
 
-                            if (s && s.weight && s.reps && selectedExerciseId) {
+                            if (s && s.weight != null && s.reps != null && selectedExerciseId) {
                               const pr = checkSetPR(selectedExerciseId, s.setNumber, s.weight, s.reps, historicalPRData);
                               if (pr.isPR) {
                                 // Mark set as PR
                                 next[index] = { ...next[index], isPR: true, prType: (pr.improvement || 'both') };
 
                                 // Save to session set-level PRs
-                                setSessionSetPRs((map: Map<string, SetPR[]>) => {
+                                setSessionSetPRs((map) => {
                                   const m = new Map(map);
-                                  const arr = m.get(selectedExerciseId) || [];
-                                  arr.push({ setNumber: s.setNumber, weight: s.weight, reps: s.reps, improvement: pr.improvement });
+                                  const existing = m.get(selectedExerciseId) ?? [];
+                                  const arr: SessionSetPR[] = [...existing];
+
+                                  arr.push({
+                                    setNumber: s.setNumber,
+                                    weight: s.weight as number,
+                                    reps: s.reps as number,
+                                    improvement: pr.improvement as SessionSetPR['improvement'],
+                                  });
+
                                   m.set(selectedExerciseId, arr);
                                   return m;
                                 });
@@ -1773,46 +1789,51 @@ function App() {
                           onChange={(e) => setShowPlateCalculator(e.target.checked)}
                           className="sr-only peer"
                         />
-                        <div className="w-11 h-6 bg-slate-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
-                      </label>
-                    </div>
+                    <div className="w-11 h-6 bg-slate-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                  </label>
+                </div>
 
-                    {/* Default Rest Time */}
-                    <div className="p-3 bg-slate-900 rounded-lg">
-                      <label className="text-sm font-medium block mb-2">Default Rest Time</label>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="number"
-                          value={defaultRestTime}
-                          onChange={(e) => setDefaultRestTime(Number(e.target.value))}
-                          className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-500"
-                          min="30"
-                          max="600"
-                          step="15"
-                        />
-                        <span className="text-sm text-slate-400">seconds</span>
-                      </div>
-                    </div>
-
-                    {/* Superset Mode */}
-                    <div className="flex items-center justify-between p-3 bg-slate-900 rounded-lg">
-                      <div>
-                        <div className="font-medium">Superset Mode</div>
-                        <div className="text-xs text-slate-400">Link exercises together</div>
-                      </div>
-                      <label className="relative inline-flex items-center cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={showSupersetOptions}
-                          onChange={(e) => setShowSupersetOptions(e.target.checked)}
-                          className="sr-only peer"
-                        />
-                        <div className="w-11 h-6 bg-slate-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
-                      </label>
-                    </div>
+                {/* Default Rest Time */}
+                <div className="p-3 bg-slate-900 rounded-lg">
+                  <label className="text-sm font-medium block mb-2">Default Rest Time</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      value={defaultRestTime}
+                      onChange={(e) => setDefaultRestTime(Number(e.target.value))}
+                      className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-500"
+                      min="30"
+                      max="600"
+                      step="15"
+                    />
+                    <span className="text-sm text-slate-400">seconds</span>
                   </div>
-                )}
+                </div>
+
+                {/* Superset Mode */}
+                <div className="flex items-center justify-between p-3 bg-slate-900 rounded-lg">
+                  <div>
+                    <div className="font-medium">Superset Mode</div>
+                    <div className="text-xs text-slate-400">Link exercises together</div>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={showSupersetOptions}
+                      onChange={(e) => setShowSupersetOptions(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-slate-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                  </label>
+                </div>
+
+                {/* Appearance */}
+                <div className="p-3 bg-slate-900 rounded-lg">
+                  <ThemeToggle />
+                </div>
               </div>
+            )}
+          </div>
 
               {/* Standalone Plate Calculator Button */}
               <button

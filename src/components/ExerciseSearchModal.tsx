@@ -6,7 +6,7 @@ interface ExerciseSearchModalProps {
   onClose: () => void;
   onSelectExercise: (exerciseId: string) => void;
   allExercises: Exercise[];
-  muscleGroups: readonly string[];
+  muscleGroups: readonly Exercise['muscleGroup'][];
 }
 
 export function ExerciseSearchModal({
@@ -17,7 +17,7 @@ export function ExerciseSearchModal({
   muscleGroups,
 }: ExerciseSearchModalProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterMuscle, setFilterMuscle] = useState('all');
+  const [filterMuscle, setFilterMuscle] = useState<'all' | Exercise['muscleGroup']>('all');
 
   if (!isOpen) return null;
 
@@ -25,9 +25,11 @@ export function ExerciseSearchModal({
     if (filterMuscle !== 'all' && ex.muscleGroup !== filterMuscle) return false;
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
-    return ex.name.toLowerCase().includes(q) || ex.muscleGroup.toLowerCase().includes(q);
+    return (
+      ex.name.toLowerCase().includes(q) ||
+      ex.muscleGroup.toLowerCase().includes(q)
+    );
   });
-
 
   const handleSelect = (exerciseId: string) => {
     onSelectExercise(exerciseId);
@@ -41,8 +43,9 @@ export function ExerciseSearchModal({
       className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
       onClick={onClose}
     >
+      {/* WICHTIG: flex flex-col + max-h-[80vh] + overflow-hidden */}
       <div
-        className="bg-slate-900 border border-slate-800 rounded-xl p-6 max-w-2xl w-full max-h-[80vh] flex flex-col"
+        className="bg-slate-900 border border-slate-800 rounded-xl p-6 max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -56,7 +59,7 @@ export function ExerciseSearchModal({
           </button>
         </div>
 
-        {/* Search & Filter */}
+        {/* Search Input */}
         <div className="mb-3">
           <input
             type="text"
@@ -97,10 +100,11 @@ export function ExerciseSearchModal({
 
         {/* Exercise Count */}
         <div className="text-xs text-slate-400 mb-2">
-          {filteredExercises.length} exercise{filteredExercises.length !== 1 ? 's' : ''}
+          {filteredExercises.length} exercise
+          {filteredExercises.length !== 1 ? 's' : ''}
         </div>
 
-        {/* Exercise List */}
+        {/* WICHTIG: flex-1 overflow-y-auto + spacing */}
         <div className="flex-1 overflow-y-auto space-y-2 pr-2">
           {filteredExercises.map((ex) => (
             <button
@@ -119,7 +123,9 @@ export function ExerciseSearchModal({
                 <h3 className="font-bold text-white group-hover:text-emerald-400 truncate">
                   {ex.name}
                 </h3>
-                <p className="text-xs text-slate-500 uppercase">{ex.muscleGroup}</p>
+                <p className="text-xs text-slate-500 uppercase">
+                  {ex.muscleGroup}
+                </p>
               </div>
             </button>
           ))}
