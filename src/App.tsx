@@ -4,9 +4,9 @@ import { Auth } from './components/Auth';
 import type { User } from '@supabase/supabase-js';
 
 // Components
-import { DashboardPage } from "./components/DashboardPage";
 import { WorkoutsPage } from "./components/WorkoutsPage";
-import { AccountPage } from "./components/AccountPage";
+// import { DashboardPage } from "./components/DashboardPage"; // Deprecated
+// import { AccountPage } from "./components/AccountPage"; // Replaced by ProfilePage
 import { ActiveWorkoutCard } from "./components/ActiveWorkoutCard";
 import { RestTimer } from "./components/RestTimer";
 import { ExerciseDetailModal } from "./components/ExerciseDetailModal";
@@ -17,6 +17,13 @@ import { WorkoutTemplateModal } from './components/WorkoutTemplateModal';
 import { type WorkoutTemplate } from './data/workoutTemplates';
 import { PlateCalculatorModal } from './components/PlateCalculatorModal';
 import { ThemeToggle } from './contexts/ThemeToggle';
+import { HistoryModal } from "./components/HistoryModal";
+
+// Social Components
+import { FeedPage } from "./components/FeedPage";
+import { ProfilePage } from "./components/ProfilePage";
+import { UserSearch } from "./components/UserSearch";
+import { UsernameModal } from "./components/UsernameModal";
 
 // Hooks & Utils
 import { useWorkoutSession } from './hooks/useWorkoutSession';
@@ -31,7 +38,9 @@ import {
   upsertExerciseRecord,
   deleteWorkout,
   saveWorkout,
-  updateWorkout
+  updateWorkout,
+  shareSessionToFeed,
+  getProfile
 } from './lib/database';
 
 // Data & Types
@@ -108,10 +117,13 @@ function App() {
   // Session Detail Modal State
   const [selectedSession, setSelectedSession] = useState<WorkoutSessionLog | null>(null);
   const [selectedExerciseDetail, setSelectedExerciseDetail] = useState<Exercise | null>(null);
-  // const [selectedExerciseForDetail, setSelectedExerciseForDetail] = useState<Exercise | null>(null);
 
   // Navigation State
-  const [currentPage, setCurrentPage] = useState<'dashboard' | 'exercises' | 'account'>('dashboard');
+  const [currentPage, setCurrentPage] = useState<string>('feed'); // flood, search, workouts, profile
+
+  // Onboarding
+  const [showUsernameModal, setShowUsernameModal] = useState(false);
+  const [viewingUserId, setViewingUserId] = useState<string | undefined>(undefined); // For ProfilePage navigation
 
   // Superset UI State (local only)
   const [showSupersetOptions, setShowSupersetOptions] = useState(false);
@@ -210,6 +222,20 @@ function App() {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // Check Profile / Onboarding
+  useEffect(() => {
+    if (!user) return;
+    checkProfile();
+  }, [user]);
+
+  const checkProfile = async () => {
+    if (!user) return;
+    const p = await getProfile(user.id);
+    if (!p || !p.username) {
+      setShowUsernameModal(true);
+    }
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -358,12 +384,12 @@ function App() {
 
   const handleQuickCreateWorkout = async () => {
     if (!user) return;
-    const workoutName = `Workout ${workouts.length + 1}`;
     try {
       const created = await saveWorkout({
-        name: workoutName,
-        description: '',
-        exercises: []
+        name: `Workout ${workouts.length + 1}`,
+        description: 'New workout plan',
+        exercises: [],
+        userId: user.id
       }, user.id);
 
       setWorkouts(prev => [created, ...prev]);
@@ -373,7 +399,24 @@ function App() {
     }
   };
 
-  const handleApplyTemplate = (template: WorkoutTemplate) => {
+  const handleApplyTemplate = (template: WorkoutTemplate | null) => {
+    if (!template) {
+      // Quick Start Logic
+      const quickWorkout: Workout = {
+        id: `quick-${Date.now()}`,
+        name: "Quick Start Session",
+        description: "Freestyle workout",
+        exerciseCount: 0,
+        exercises: [],
+        userId: user?.id || 'temp',
+        createdAt: new Date().toISOString(),
+      };
+      startWorkout(quickWorkout);
+      setMode("active");
+      setShowTemplateModal(false);
+      return;
+    }
+
     const templateExercises = template.exercises
       .map(te => {
         const exercise = ALL_EXERCISES.find(ex =>
@@ -398,6 +441,7 @@ function App() {
 
     addExercisesToWorkout(templateExercises);
     alert(`✅ Added ${templateExercises.length} exercises from "${template.name}"`);
+    setShowTemplateModal(false);
   };
 
   const handleSaveExercise = async () => {
@@ -505,13 +549,13 @@ function App() {
       newPRs: sessionPRs
     };
 
+
     setSessionLogs(prev => [log, ...prev]);
 
     try {
       await saveSessionLog(log, user.id);
 
       // Update workout "last performed"
-      // TODO: Move this to database.ts as well or use updateWorkout
       await updateWorkout(workout.id, {
         lastPerformed: end,
         exercises: workoutExercises,
@@ -524,6 +568,11 @@ function App() {
         )
       );
 
+      // Share to Feed Prompt (Simplistic: Auto-share or Ask? User said "Button Share to Feed", implying manual action AFTER completion or IN summary)
+      // The user requirement: "Nach Workout Complete: Button „Share to Feed" (calls shareSession(sessionId))."
+      // So I should render a button in the Summary view (which I haven't modified yet).
+      // I'll keep the save logic as is here. I will modify the Summary view in the render section.
+
     } catch (err) {
       console.error("Error saving workout session:", err);
     }
@@ -532,6 +581,7 @@ function App() {
     setTotalVolume(totalVol);
     setTotalSetsCompleted(totalSets);
     setShowSummary(true);
+    setSelectedSession(log); // Set selected session so we can pass ID to share button if needed
   };
 
   const finishSession = () => {
@@ -569,11 +619,11 @@ function App() {
       .slice(0, 10);
   };
 
-  if (authLoading) return <div className="min-h-screen bg-white text-slate-900 dark:bg-slate-950 dark:text-white flex items-center justify-center">Loading...</div>;
+  if (authLoading) return <div className="min-h-screen bg-background text-foreground flex items-center justify-center">Loading...</div>;
   if (!user) return <Auth />;
 
   return (
-    <div className="min-h-screen bg-white text-slate-900 dark:bg-slate-950 dark:text-white pb-20">
+    <div className="min-h-screen bg-background text-foreground pb-20">
       {isLoadingData && (
         <div className="max-w-4xl mx-auto px-6 pt-6">
           <div className="bg-blue-900/20 border border-blue-900 rounded-lg p-3 text-sm">Loading...</div>
@@ -639,14 +689,22 @@ function App() {
         )}
 
         {/* PAGES */}
-        {currentPage === 'dashboard' && mode === "overview" && !isLoadingData && (
-          <DashboardPage
-            sessionLogs={sessionLogs}
-            onSelectSession={setSelectedSession}
-          />
+
+        {/* FEED */}
+        {currentPage === 'feed' && mode === 'overview' && (
+          <FeedPage />
         )}
 
-        {currentPage === 'exercises' && mode === "overview" && (
+        {/* SEARCH */}
+        {currentPage === 'search' && mode === 'overview' && (
+          <UserSearch onSelectUser={(uid) => {
+            setViewingUserId(uid);
+            setCurrentPage('profile');
+          }} />
+        )}
+
+        {/* WORKOUTS (Replaced Dashboard/Exercises split) */}
+        {currentPage === 'dashboard' && mode === "overview" && (
           <WorkoutsPage
             workouts={workouts}
             onStart={handleStartWorkout}
@@ -670,8 +728,14 @@ function App() {
           />
         )}
 
-        {currentPage === 'account' && (
-          <AccountPage user={user} />
+        {/* PROFILE */}
+        {currentPage === 'profile' && (
+          <ProfilePage userId={viewingUserId} />
+        )}
+
+        {/* USERNAME MODAL */}
+        {showUsernameModal && user && (
+          <UsernameModal userId={user.id} onComplete={() => setShowUsernameModal(false)} />
         )}
 
         {/* ACTIVE WORKOUT VIEW */}
@@ -791,6 +855,7 @@ function App() {
                       allExercises={ALL_EXERCISES}
                       isSupersetWith={partnerName}
                       onToggleSuperset={() => { if (currentEx.supersetWith) toggleSuperset(currentEx.id, currentEx.supersetWith); }}
+                      onOpenHistory={() => { setHistoryExerciseId(selectedExerciseId); setShowExerciseHistory(true); }}
                     />
                   );
                 })()}
@@ -818,108 +883,124 @@ function App() {
         )}
 
         {showSummary && (
-          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 max-w-md w-full text-center">
-              <h2 className="text-3xl font-bold mb-2">🎉 Workout Completed!</h2>
-              <div className="grid grid-cols-3 gap-4 mb-6 mt-6">
-                <div className="bg-slate-800 rounded-lg p-4"><div className="text-2xl font-bold text-emerald-400">{formatTime(workoutDuration || 0)}</div><div className="text-xs text-slate-400">Duration</div></div>
-                <div className="bg-slate-800 rounded-lg p-4"><div className="text-2xl font-bold text-emerald-400">{totalVolume.toLocaleString()} kg</div><div className="text-xs text-slate-400">Volume</div></div>
-                <div className="bg-slate-800 rounded-lg p-4"><div className="text-2xl font-bold text-emerald-400">{totalSetsCompleted}</div><div className="text-xs text-slate-400">Sets</div></div>
-              </div>
-              <button onClick={finishSession} className="w-full py-3 rounded-lg bg-emerald-500 text-black font-bold">Done</button>
-            </div>
-          </div>
-        )}
+          <div className="fixed inset-0 bg-black/95 flex items-center justify-center z-50 p-6">
+            <div className="bg-card border border-border rounded-xl p-8 max-w-sm w-full text-center shadow-2xl">
+              <div className="text-5xl mb-4">🎉</div>
+              <h2 className="text-3xl font-bold text-foreground mb-2">Workout Complete!</h2>
+              <p className="text-muted-foreground mb-6">{formatTime(workoutDuration || 0)} • {totalVolume} kg • {totalSetsCompleted} sets</p>
 
-        {editingWorkoutId && (
-          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 max-w-md w-full">
-              <h2 className="text-xl font-bold mb-4">Edit Workout</h2>
-              <div className="space-y-4">
-                <div><label className="text-xs text-slate-400">Name</label><input value={editName} onChange={(e) => setEditName(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded p-2" /></div>
-                <div><label className="text-xs text-slate-400">Description</label><textarea value={editDescription} onChange={(e) => setEditDescription(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded p-2" /></div>
-              </div>
-              <div className="flex gap-3 mt-6">
-                <button onClick={() => setEditingWorkoutId(null)} className="px-4 py-2 text-slate-400">Cancel</button>
-                <button onClick={async () => {
-                  if (editingWorkoutId && editName.trim()) {
-                    setWorkouts(prev => prev.map(w => w.id === editingWorkoutId ? { ...w, name: editName, description: editDescription } : w));
-                    try {
-                      await updateWorkout(editingWorkoutId, { name: editName, description: editDescription });
-                    } catch (e) { console.error(e); }
-                  }
-                  setEditingWorkoutId(null);
-                }} className="flex-1 py-2 bg-emerald-500 text-black rounded">Save</button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {showWorkoutSettings && (
-          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={() => setShowWorkoutSettings(false)}>
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 max-w-md w-full max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-              <h2 className="text-2xl font-bold mb-6">Workout Settings</h2>
-              <div className="mb-6">
-                <button onClick={() => setShowAdvancedFeatures(!showAdvancedFeatures)} className="w-full flex justify-between p-4 bg-slate-800 rounded-lg">
-                  <span className="font-bold">Advanced Features</span>
-                  <span>{showAdvancedFeatures ? '▼' : '▶'}</span>
+              {selectedSession && (
+                <button
+                  onClick={async () => {
+                    await shareSessionToFeed(selectedSession.id);
+                    alert("Shared to Feed!");
+                  }}
+                  className="w-full py-3 mb-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-500 transition-colors"
+                >
+                  Post to Feed 🌍
                 </button>
-                {showAdvancedFeatures && (
-                  <div className="mt-3 space-y-3 p-4 border border-slate-700 rounded-lg">
-                    <div className="flex justify-between"><span className="font-medium">🔥 Deload Week</span><input type="checkbox" checked={isDeload} onChange={(e) => setIsDeload(e.target.checked)} className="accent-emerald-500" /></div>
-                    <div className="flex justify-between"><span className="font-medium">Show RPE</span><input type="checkbox" checked={showRPE} onChange={(e) => setShowRPE(e.target.checked)} className="accent-emerald-500" /></div>
-                    <div className="flex justify-between"><span className="font-medium">Show 1RM</span><input type="checkbox" checked={show1RM} onChange={(e) => setShow1RM(e.target.checked)} className="accent-emerald-500" /></div>
-                    <div className="flex justify-between"><span className="font-medium">Show Plate Calc</span><input type="checkbox" checked={showPlateCalculator} onChange={(e) => setShowPlateCalculator(e.target.checked)} className="accent-emerald-500" /></div>
-                    <div className="flex justify-between"><span className="font-medium">Superset Mode</span><input type="checkbox" checked={showSupersetOptions} onChange={(e) => setShowSupersetOptions(e.target.checked)} className="accent-emerald-500" /></div>
-                    <ThemeToggle />
-                  </div>
-                )}
-              </div>
-              <button onClick={() => { setCustomRestSeconds(defaultRestTime); setShowWorkoutSettings(false); }} className="w-full py-3 bg-slate-800 rounded-lg">Done</button>
+              )}
+
+              <button onClick={finishSession} className="w-full py-3 bg-primary text-primary-foreground font-bold rounded-xl hover:bg-primary/90 transition-colors">
+                Back to Home
+              </button>
             </div>
           </div>
         )}
+
+        {
+          editingWorkoutId && (
+            <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+              <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 max-w-md w-full">
+                <h2 className="text-xl font-bold mb-4">Edit Workout</h2>
+                <div className="space-y-4">
+                  <div><label className="text-xs text-slate-400">Name</label><input value={editName} onChange={(e) => setEditName(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded p-2" /></div>
+                  <div><label className="text-xs text-slate-400">Description</label><textarea value={editDescription} onChange={(e) => setEditDescription(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded p-2" /></div>
+                </div>
+                <div className="flex gap-3 mt-6">
+                  <button onClick={() => setEditingWorkoutId(null)} className="px-4 py-2 text-slate-400">Cancel</button>
+                  <button onClick={async () => {
+                    if (editingWorkoutId && editName.trim()) {
+                      setWorkouts(prev => prev.map(w => w.id === editingWorkoutId ? { ...w, name: editName, description: editDescription } : w));
+                      try {
+                        await updateWorkout(editingWorkoutId, { name: editName, description: editDescription });
+                      } catch (e) { console.error(e); }
+                    }
+                    setEditingWorkoutId(null);
+                  }} className="flex-1 py-2 bg-emerald-500 text-black rounded">Save</button>
+                </div>
+              </div>
+            </div>
+          )
+        }
+
+        {
+          showWorkoutSettings && (
+            <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={() => setShowWorkoutSettings(false)}>
+              <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 max-w-md w-full max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+                <h2 className="text-2xl font-bold mb-6">Workout Settings</h2>
+                <div className="mb-6">
+                  <button onClick={() => setShowAdvancedFeatures(!showAdvancedFeatures)} className="w-full flex justify-between p-4 bg-slate-800 rounded-lg">
+                    <span className="font-bold">Advanced Features</span>
+                    <span>{showAdvancedFeatures ? '▼' : '▶'}</span>
+                  </button>
+                  {showAdvancedFeatures && (
+                    <div className="mt-3 space-y-3 p-4 border border-slate-700 rounded-lg">
+                      <div className="flex justify-between"><span className="font-medium">🔥 Deload Week</span><input type="checkbox" checked={isDeload} onChange={(e) => setIsDeload(e.target.checked)} className="accent-emerald-500" /></div>
+                      <div className="flex justify-between"><span className="font-medium">Show RPE</span><input type="checkbox" checked={showRPE} onChange={(e) => setShowRPE(e.target.checked)} className="accent-emerald-500" /></div>
+                      <div className="flex justify-between"><span className="font-medium">Show 1RM</span><input type="checkbox" checked={show1RM} onChange={(e) => setShow1RM(e.target.checked)} className="accent-emerald-500" /></div>
+                      <div className="flex justify-between"><span className="font-medium">Show Plate Calc</span><input type="checkbox" checked={showPlateCalculator} onChange={(e) => setShowPlateCalculator(e.target.checked)} className="accent-emerald-500" /></div>
+                      <div className="flex justify-between"><span className="font-medium">Superset Mode</span><input type="checkbox" checked={showSupersetOptions} onChange={(e) => setShowSupersetOptions(e.target.checked)} className="accent-emerald-500" /></div>
+                      <ThemeToggle />
+                    </div>
+                  )}
+                </div>
+                <button onClick={() => { setCustomRestSeconds(defaultRestTime); setShowWorkoutSettings(false); }} className="w-full py-3 bg-slate-800 rounded-lg">Done</button>
+              </div>
+            </div>
+          )
+        }
 
         {selectedSession && <SessionDetailModal session={selectedSession} onClose={() => setSelectedSession(null)} />}
         {selectedExerciseDetail && <ExerciseDetailModal exercise={selectedExerciseDetail} onClose={() => setSelectedExerciseDetail(null)} />}
-        {showExerciseSearchModal && <ExerciseSearchModal isOpen={showExerciseSearchModal} onClose={() => setShowExerciseSearchModal(false)} onSelectExercise={(id) => {
-          const ex = ALL_EXERCISES.find(e => e.id === id);
-          if (ex) {
-            addExercisesToWorkout([{ id: ex.id, exerciseId: ex.id, name: ex.name, muscleGroup: ex.muscleGroup, imageUrl: ex.imageUrl, note: ex.note }]);
-            setShowExerciseSearchModal(false);
-          }
-        }} allExercises={ALL_EXERCISES} muscleGroups={Array.from(MUSCLE_GROUPS)} />}
+        {
+          showExerciseSearchModal && <ExerciseSearchModal isOpen={showExerciseSearchModal} onClose={() => setShowExerciseSearchModal(false)} onSelectExercise={(id) => {
+            const ex = ALL_EXERCISES.find(e => e.id === id);
+            if (ex) {
+              addExercisesToWorkout([{ id: ex.id, exerciseId: ex.id, name: ex.name, muscleGroup: ex.muscleGroup, imageUrl: ex.imageUrl, note: ex.note }]);
+              setShowExerciseSearchModal(false);
+            }
+          }} allExercises={ALL_EXERCISES} muscleGroups={Array.from(MUSCLE_GROUPS)} />
+        }
 
         {showRestTimer && <RestTimer initialSeconds={customRestSeconds} onDismiss={stopRestTimer} autoStart={true} />}
 
-        {showExerciseHistory && historyExerciseId && (
-          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={() => setShowExerciseHistory(false)}>
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-              <h2 className="text-xl font-bold mb-4">{ALL_EXERCISES.find(ex => ex.id === historyExerciseId)?.name} - History</h2>
-              <div className="space-y-4">
-                {getExerciseHistory(historyExerciseId).map((s, i) => (
-                  <div key={i} className="bg-slate-800 rounded-lg p-4">
-                    <div className="flex justify-between mb-2">
-                      <span className="text-slate-400 text-sm">{new Date(s.date).toLocaleDateString()}</span>
-                      <span className="text-emerald-400 font-bold">{s.volume}kg</span>
-                    </div>
-                    <div className="space-y-1">{s.sets.map((set, si) => <div key={si} className="text-sm bg-slate-900 px-2 py-1 rounded flex justify-between"><span>Set {set.setNumber}</span><span>{set.weight}kg × {set.reps}</span></div>)}</div>
-                  </div>
-                ))}
-                {getExerciseHistory(historyExerciseId).length === 0 && <p className="text-slate-500 text-center">No history yet.</p>}
-              </div>
-            </div>
-          </div>
-        )}
+        {
+          showExerciseHistory && historyExerciseId && (
+            <HistoryModal
+              isOpen={showExerciseHistory}
+              onClose={() => setShowExerciseHistory(false)}
+              exerciseName={ALL_EXERCISES.find(ex => ex.id === historyExerciseId)?.name || "Exercise"}
+              history={getExerciseHistory(historyExerciseId)}
+            />
+          )
+        }
 
         {showPlateCalcModal && <PlateCalculatorModal isOpen={showPlateCalcModal} onClose={() => setShowPlateCalcModal(false)} initialWeight={plateCalcWeight} />}
         <WorkoutTemplateModal isOpen={showTemplateModal} onClose={() => setShowTemplateModal(false)} onSelectTemplate={handleApplyTemplate} />
 
-      </div>
 
-      <BottomNav currentPage={currentPage} onNavigate={setCurrentPage} />
-    </div>
-  );
+
+        <BottomNav
+          currentPage={currentPage}
+          onNavigate={(p) => {
+            if (p === 'profile') setViewingUserId(undefined); // Reset to own profile
+            setCurrentPage(p);
+          }}
+        />
+      </div>
+      );
 }
 
-export default App;
+      export default App;
+

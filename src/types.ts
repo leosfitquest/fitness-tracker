@@ -37,11 +37,13 @@ export interface WorkoutExercise {
 
 export type Workout = {
     id: string;
+    userId: string;
     name: string;
     description?: string;
     exerciseCount: number;
     estimatedDuration?: number;
     lastPerformed?: string;
+    createdAt?: string;
     exercises: Exercise[];
 };
 
@@ -104,4 +106,58 @@ export type SessionSetPR = {
     weight: number;
     reps: number;
     improvement: 'weight' | 'reps' | 'both' | 'none';
+};
+
+// --- Social Features ---
+
+export type UserProfile = {
+    id: string; // references auth.users.id
+    username: string;
+    full_name?: string;
+    avatar_url?: string;
+    bio?: string;
+    website?: string;
+    created_at: string;
+};
+
+export type Follow = {
+    follower_id: string;
+    following_id: string;
+    created_at: string;
+};
+
+export type SessionLike = {
+    id: string;
+    user_id: string;
+    session_id: string;
+    created_at: string;
+};
+
+export type SessionComment = {
+    id: string;
+    user_id: string;
+    session_id: string;
+    content: string;
+    created_at: string;
+    user?: UserProfile; // Joined data
+};
+
+// A "Feed Item" is essentially a WorkoutSessionLog with extra social data
+export type FeedItem = WorkoutSessionLog & {
+    user: UserProfile; // The creator
+    likes_count: number;
+    comments_count: number;
+    has_liked: boolean; // Computed for current user
+    latest_comments?: SessionComment[];
+};
+
+export type Notification = {
+    id: string;
+    user_id: string; // Recipient
+    actor_id: string; // Who triggered it
+    type: 'follow' | 'like' | 'comment';
+    entity_id?: string; // session_id, etc.
+    is_read: boolean;
+    created_at: string;
+    actor?: UserProfile; // Joined data
 };

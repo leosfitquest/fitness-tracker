@@ -1,5 +1,9 @@
-import { useState } from 'react';
-import type { Exercise } from '../App';
+import { useState, useMemo } from 'react';
+import * as ReactWindow from 'react-window';
+import type { Exercise } from '../types.ts';
+import { useExercisePreferences } from '../hooks/useExercisePreferences';
+
+const List = ReactWindow.FixedSizeList;
 
 interface ExerciseSearchModalProps {
   isOpen: boolean;
@@ -17,124 +21,150 @@ export function ExerciseSearchModal({
   muscleGroups,
 }: ExerciseSearchModalProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterMuscle, setFilterMuscle] = useState<'all' | Exercise['muscleGroup']>('all');
+  const [activeFilter, setActiveFilter] = useState<'all' | 'favorites' | 'recent' | string>('all');
 
-  if (!isOpen) return null;
+  const { favorites, recent, toggleFavorite, addToRecent } = useExercisePreferences();
 
-  const filteredExercises = allExercises.filter((ex) => {
-    if (filterMuscle !== 'all' && ex.muscleGroup !== filterMuscle) return false;
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase();
-    return (
-      ex.name.toLowerCase().includes(q) ||
-      ex.muscleGroup.toLowerCase().includes(q)
-    );
-  });
+  const filteredExercises = useMemo(() => {
+    return allExercises.filter((ex) => {
+      // 1. Text Search
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        if (!ex.name.toLowerCase().includes(q) && !ex.muscleGroup.toLowerCase().includes(q)) {
+          return false;
+        }
+      }
+
+      // 2. Category/Tab Filter
+      if (activeFilter === 'favorites') return favorites.includes(ex.id);
+      if (activeFilter === 'recent') return recent.includes(ex.id);
+      if (activeFilter !== 'all' && ex.muscleGroup !== activeFilter) return false;
+
+      return true;
+    }).sort((a, b) => {
+      // Favorites always on top if no specific sort
+      const aFav = favorites.includes(a.id);
+      const bFav = favorites.includes(b.id);
+      if (aFav && !bFav) return -1;
+      if (!aFav && bFav) return 1;
+      return a.name.localeCompare(b.name);
+    });
+  }, [allExercises, searchQuery, activeFilter, favorites, recent]);
 
   const handleSelect = (exerciseId: string) => {
+    addToRecent(exerciseId);
     onSelectExercise(exerciseId);
     setSearchQuery('');
-    setFilterMuscle('all');
+    setActiveFilter('all');
     onClose();
   };
+
+  const Row = ({ index, style }: { index: number; style: React.CSSProperties }) => {
+    const ex = filteredExercises[index];
+    const isFav = favorites.includes(ex.id);
+
+    return (
+      <div style={style} className="px-2 py-1">
+        <div className="flex items-center gap-2 group h-full">
+          <button
+            onClick={(e) => { e.stopPropagation(); toggleFavorite(ex.id); }}
+            className={`p-2 rounded-lg transition-colors ${isFav ? 'text-red-500 hover:bg-red-500/10' : 'text-slate-600 hover:text-red-400 hover:bg-slate-800'}`}
+          >
+            {isFav ? '❤️' : '🤍'}
+          </button>
+          <button
+            onClick={() => handleSelect(ex.id)}
+            className="flex-1 h-full p-2 rounded-lg border border-border bg-card hover:border-primary transition-all text-left flex items-center gap-3"
+          >
+            {ex.imageUrl && (
+              <img
+                src={ex.imageUrl}
+                alt={ex.name}
+                className="w-10 h-10 object-cover rounded-md bg-secondary"
+              />
+            )}
+            <div className="flex-1 min-w-0">
+              <h3 className="font-bold text-foreground group-hover:text-primary truncate">
+                {ex.name}
+              </h3>
+              <p className="text-xs text-muted-foreground uppercase">
+                {ex.muscleGroup}
+              </p>
+            </div>
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  if (!isOpen) return null;
 
   return (
     <div
       className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
       onClick={onClose}
     >
-      {/* WICHTIG: flex flex-col + max-h-[80vh] + overflow-hidden */}
       <div
-        className="bg-slate-900 border border-slate-800 rounded-xl p-6 max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col"
+        className="bg-card border border-border rounded-xl p-6 max-w-2xl w-full h-[80vh] flex flex-col shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold">Add Exercise</h2>
-          <button
-            onClick={onClose}
-            className="text-slate-400 hover:text-white text-xl"
-          >
-            ✕
-          </button>
+          <h2 className="text-xl font-bold text-foreground">Add Exercise</h2>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground text-xl">✕</button>
         </div>
 
         {/* Search Input */}
-        <div className="mb-3">
+        <div className="mb-4">
           <input
             type="text"
             placeholder="Search exercises..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-emerald-500"
+            className="w-full rounded-lg border border-input bg-background px-4 py-3 text-sm text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary"
             autoFocus
           />
         </div>
 
-        {/* Muscle Group Filters */}
-        <div className="flex flex-wrap gap-2 mb-4">
-          <button
-            onClick={() => setFilterMuscle('all')}
-            className={`px-3 py-1 text-xs rounded-full border transition-all ${
-              filterMuscle === 'all'
-                ? 'border-emerald-500 bg-emerald-900 text-emerald-100'
-                : 'border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700'
-            }`}
-          >
-            All
-          </button>
+        {/* Filters */}
+        <div className="flex flex-wrap gap-2 mb-4 pb-2 border-b border-border">
+          <button onClick={() => setActiveFilter('all')} className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${activeFilter === 'all' ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'}`}>All</button>
+          <button onClick={() => setActiveFilter('favorites')} className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${activeFilter === 'favorites' ? 'bg-red-500 text-white' : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'}`}>❤️ Favorites</button>
+          <button onClick={() => setActiveFilter('recent')} className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${activeFilter === 'recent' ? 'bg-blue-500 text-white' : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'}`}>🕒 Recent</button>
+          <div className="w-px h-6 bg-border mx-1" />
           {muscleGroups.map((group) => (
             <button
               key={group}
-              onClick={() => setFilterMuscle(group)}
-              className={`px-3 py-1 text-xs rounded-full border transition-all ${
-                filterMuscle === group
-                  ? 'border-emerald-500 bg-emerald-900 text-emerald-100'
-                  : 'border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700'
-              }`}
+              onClick={() => setActiveFilter(group)}
+              className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${activeFilter === group ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'}`}
             >
               {group}
             </button>
           ))}
         </div>
 
-        {/* Exercise Count */}
-        <div className="text-xs text-slate-400 mb-2">
-          {filteredExercises.length} exercise
-          {filteredExercises.length !== 1 ? 's' : ''}
-        </div>
-
-        {/* WICHTIG: flex-1 overflow-y-auto + spacing */}
-        <div className="flex-1 overflow-y-auto space-y-2 pr-2">
-          {filteredExercises.map((ex) => (
-            <button
-              key={ex.id}
-              onClick={() => handleSelect(ex.id)}
-              className="group w-full p-3 rounded-lg border border-slate-800 bg-slate-950 hover:bg-slate-800 hover:border-emerald-500 transition-all text-left flex items-center gap-3"
+        {/* Exercise List */}
+        <div className="flex-1 min-h-0">
+          {filteredExercises.length > 0 ? (
+            <List
+              height={500} // This should specific or calculated, but standard for modal 
+              itemCount={filteredExercises.length}
+              itemSize={70}
+              width="100%"
+              className="no-scrollbar"
             >
-              {ex.imageUrl && (
-                <img
-                  src={ex.imageUrl}
-                  alt={ex.name}
-                  className="w-12 h-12 object-cover rounded-md"
-                />
-              )}
-              <div className="flex-1 min-w-0">
-                <h3 className="font-bold text-white group-hover:text-emerald-400 truncate">
-                  {ex.name}
-                </h3>
-                <p className="text-xs text-slate-500 uppercase">
-                  {ex.muscleGroup}
-                </p>
-              </div>
-            </button>
-          ))}
-
-          {filteredExercises.length === 0 && (
-            <div className="text-center py-8 text-slate-500">
-              No exercises found. Try a different search term.
+              {Row}
+            </List>
+          ) : (
+            <div className="h-full flex flex-col items-center justify-center text-muted-foreground opacity-50">
+              <span className="text-4xl mb-2">🔍</span>
+              <p>No exercises found</p>
             </div>
           )}
+        </div>
+
+        <div className="text-xs text-muted-foreground mt-4 text-center">
+          {filteredExercises.length} exercise{filteredExercises.length !== 1 ? 's' : ''} found
         </div>
       </div>
     </div>
