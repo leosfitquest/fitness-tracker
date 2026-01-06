@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import type { Workout, WorkoutExercise, ExerciseSessionData, ActiveSet } from '../App';
+import type { Workout, WorkoutExercise, ExerciseSessionData, ActiveSet } from '../types.ts';
 
 export function useWorkoutSession() {
   // UI Mode + selection state
@@ -14,12 +14,12 @@ export function useWorkoutSession() {
   const [sessionNotes, setSessionNotes] = useState("");
   const [isDeload, setIsDeload] = useState(false);
   const [sessionPRs, setSessionPRs] = useState<any[]>([]);
-  
+
   // Data State
   const [workoutExercises, setWorkoutExercises] = useState<WorkoutExercise[]>([]);
   const [workoutExercisesData, setWorkoutExercisesData] = useState<Record<string, ExerciseSessionData>>({});
   const [activeSets, setActiveSets] = useState<ActiveSet[]>([]);
-  
+
   // Timer for duration
   const [workoutStartTime, setWorkoutStartTime] = useState<number | null>(null);
   const [workoutElapsedSeconds, setWorkoutElapsedSeconds] = useState(0);
@@ -45,12 +45,12 @@ export function useWorkoutSession() {
     setSessionStart(new Date().toISOString());
     setWorkoutStartTime(Date.now()); // This might need to be reset when actually starting?
     setWorkoutExercises(workout.exercises.map(ex => ({
-        ...ex,
-        exerciseId: ex.id,
-        targetSets: ex.sets,
-        targetReps: ex.reps?.toString(),
+      ...ex,
+      exerciseId: ex.id,
+      targetSets: ex.sets,
+      targetReps: ex.reps?.toString(),
     })));
-    
+
     // Initialize data for each exercise
     const initialData: Record<string, ExerciseSessionData> = {};
     workout.exercises.forEach(ex => {
@@ -87,12 +87,12 @@ export function useWorkoutSession() {
       const exerciseData = { ...prev[exerciseId] };
       const sets = [...exerciseData.sets];
       sets[setIndex] = { ...sets[setIndex], [field]: value };
-      
+
       // Calculate volume if completed
       if (field === 'completed' && value === true) {
-         // This logic might need to be more complex if we want to recalc volume dynamically
+        // This logic might need to be more complex if we want to recalc volume dynamically
       }
-      
+
       return {
         ...prev,
         [exerciseId]: {
@@ -109,7 +109,7 @@ export function useWorkoutSession() {
       const newSetNumber = exerciseData.sets.length + 1;
       // Copy previous set values if available for convenience
       const lastSet = exerciseData.sets[exerciseData.sets.length - 1];
-      
+
       return {
         ...prev,
         [exerciseId]: {
@@ -131,7 +131,7 @@ export function useWorkoutSession() {
 
   const addExercises = (newExercises: WorkoutExercise[]) => {
     setWorkoutExercises(prev => [...prev, ...newExercises]);
-    
+
     // Initialize data for new exercises
     setWorkoutExercisesData(prev => {
       const newData = { ...prev };
@@ -180,11 +180,11 @@ export function useWorkoutSession() {
       const newExercises = [...prev];
       const idx1 = newExercises.findIndex(ex => ex.id === exerciseId1);
       const idx2 = newExercises.findIndex(ex => ex.id === exerciseId2);
-      
+
       if (idx1 === -1 || idx2 === -1) return prev;
-      
+
       const alreadySuperset = newExercises[idx1].supersetWith === exerciseId2;
-      
+
       if (alreadySuperset) {
         newExercises[idx1].supersetWith = undefined;
         newExercises[idx1].supersetGroup = undefined;

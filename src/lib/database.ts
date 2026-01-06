@@ -1,5 +1,5 @@
 import { supabase } from './supabase'
-import type { Workout, WorkoutSessionLog, ExerciseRecord } from '../types';
+import type { Workout, WorkoutSessionLog, ExerciseRecord } from '../types.ts';
 
 // ============= WORKOUTS =============
 
@@ -9,9 +9,9 @@ export async function loadWorkouts(userId: string): Promise<Workout[]> {
     .select('*')
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
-  
+
   if (error) throw error;
-  
+
   return (data || []).map((w: any) => ({
     id: w.id,
     name: w.name,
@@ -36,7 +36,7 @@ export async function saveWorkout(workout: Omit<Workout, 'id' | 'exerciseCount' 
     })
     .select()
     .single()
-  
+
   if (error) throw error
   return data;
 }
@@ -51,7 +51,7 @@ export async function updateWorkout(workoutId: string, updates: Partial<Workout>
     .eq('id', workoutId)
     .select()
     .single()
-  
+
   if (error) throw error
   return data
 }
@@ -61,36 +61,36 @@ export async function deleteWorkout(workoutId: string): Promise<void> {
     .from('workouts')
     .delete()
     .eq('id', workoutId)
-  
+
   if (error) throw error
 }
 
 // ============= SESSIONS =============
 
 export async function saveSessionLog(log: WorkoutSessionLog, userId: string): Promise<WorkoutSessionLog> {
-    const sessionData: any = {
-        user_id: userId,
-        workout_id: log.workoutId,
-        workout_name: log.workoutName,
-        started_at: log.startedAt,
-        ended_at: log.endedAt,
-        duration_minutes: log.durationMinutes,
-        total_volume: log.totalVolume,
-        total_sets: log.totalSetsCompleted,
-        is_deload: log.isDeload,
-        notes: log.notes,
-        exercises: log.exercises
-    };
+  const sessionData: any = {
+    user_id: userId,
+    workout_id: log.workoutId,
+    workout_name: log.workoutName,
+    started_at: log.startedAt,
+    ended_at: log.endedAt,
+    duration_minutes: log.durationMinutes,
+    total_volume: log.totalVolume,
+    total_sets: log.totalSetsCompleted,
+    is_deload: log.isDeload,
+    notes: log.notes,
+    exercises: log.exercises
+  };
 
-    if (log.durationSeconds) sessionData.duration_seconds = log.durationSeconds;
-    if (log.newPRs) sessionData.new_prs = log.newPRs;
+  if (log.durationSeconds) sessionData.duration_seconds = log.durationSeconds;
+  if (log.newPRs) sessionData.new_prs = log.newPRs;
 
   const { data, error } = await supabase
     .from('workout_sessions')
     .insert(sessionData)
     .select()
     .single()
-  
+
   if (error) throw error
   return data
 }
@@ -102,7 +102,7 @@ export async function loadSessionLogs(userId: string): Promise<WorkoutSessionLog
     .eq('user_id', userId)
     .order('started_at', { ascending: false })
     .limit(50)
-  
+
   if (error) throw error;
 
   return (data || []).map((l: any) => ({
@@ -140,28 +140,28 @@ export async function upsertExerciseRecord(record: ExerciseRecord, userId: strin
     })
     .select()
     .single()
-  
+
   if (error) throw error
   return data
 }
 
 export async function loadExerciseRecords(userId: string): Promise<Record<string, ExerciseRecord>> {
-    const { data, error } = await supabase
-      .from('exercise_records')
-      .select('*')
-      .eq('user_id', userId)
-    
-    if (error) throw error;
-  
-    const recordsMap: Record<string, ExerciseRecord> = {};
-    (data || []).forEach((r: any) => {
-        recordsMap[r.exercise_id] = {
-        exerciseId: r.exercise_id,
-        exerciseName: r.exercise_name,
-        bestVolume: Number(r.best_volume),
-        bestSet: r.best_set,
-        estimated1RM: Number(r.estimated_1rm)
-        };
-    });
-    return recordsMap;
+  const { data, error } = await supabase
+    .from('exercise_records')
+    .select('*')
+    .eq('user_id', userId)
+
+  if (error) throw error;
+
+  const recordsMap: Record<string, ExerciseRecord> = {};
+  (data || []).forEach((r: any) => {
+    recordsMap[r.exercise_id] = {
+      exerciseId: r.exercise_id,
+      exerciseName: r.exercise_name,
+      bestVolume: Number(r.best_volume),
+      bestSet: r.best_set,
+      estimated1RM: Number(r.estimated_1rm)
+    };
+  });
+  return recordsMap;
 }
