@@ -619,6 +619,9 @@ function App() {
       .slice(0, 10);
   };
 
+  const activeWorkoutEx = selectedExerciseId ? workoutExercises.find(ex => ex.id === selectedExerciseId) : undefined;
+  const activePartnerName = activeWorkoutEx?.supersetWith ? workoutExercises.find(e => e.id === activeWorkoutEx.supersetWith)?.name : undefined;
+
   if (authLoading) return <div className="min-h-screen bg-background text-foreground flex items-center justify-center">Loading...</div>;
   if (!user) return <Auth />;
 
@@ -812,53 +815,46 @@ function App() {
             )}
 
             {/* ACTIVE CARD */}
-            {selectedExerciseId && (
+            {selectedExerciseId && activeWorkoutEx && (
               <div className="max-w-4xl mx-auto">
-                {(() => {
-                  const currentEx = workoutExercises.find(ex => ex.id === selectedExerciseId);
-                  if (!currentEx) return null;
-                  const partnerName = currentEx.supersetWith ? workoutExercises.find(e => e.id === currentEx.supersetWith)?.name : undefined;
-                  return (
-                    <ActiveWorkoutCard
-                      exerciseId={selectedExerciseId}
-                      exerciseName={currentEx.name}
-                      muscleGroup={currentEx.muscleGroup}
-                      sets={activeSets}
-                      note={currentEx.note}
-                      onSetChange={(index, field, value) => {
-                        // Local update for UI responsiveness
-                        setActiveSets(prev => {
-                          const next = prev.map((s, i) => i === index ? { ...s, [field]: value } : s);
-                          // Auto-start rest logic
-                          if (field === 'completed' && value === true) {
-                            if (autoStartRest) startRestTimer(customRestSeconds || defaultRestTime);
-                            // PR Check
-                            const s = next[index];
-                            if (s && s.weight != null && s.reps != null) {
-                              const pr = checkSetPR(selectedExerciseId, s.setNumber, s.weight, s.reps, historicalPRData);
-                              if (pr.isPR) {
-                                next[index] = { ...next[index], isPR: true, prType: pr.improvement || 'both' };
-                                alert(`🔥 NEW PR! Set ${s.setNumber}: ${s.weight}kg × ${s.reps} reps`);
-                              }
-                            }
+                <ActiveWorkoutCard
+                  exerciseId={selectedExerciseId}
+                  exerciseName={activeWorkoutEx.name}
+                  muscleGroup={activeWorkoutEx.muscleGroup}
+                  sets={activeSets}
+                  note={activeWorkoutEx.note}
+                  onSetChange={(index, field, value) => {
+                    // Local update for UI responsiveness
+                    setActiveSets(prev => {
+                      const next = prev.map((s, i) => i === index ? { ...s, [field]: value } : s);
+                      // Auto-start rest logic
+                      if (field === 'completed' && value === true) {
+                        if (autoStartRest) startRestTimer(customRestSeconds || defaultRestTime);
+                        // PR Check
+                        const s = next[index];
+                        if (s && s.weight != null && s.reps != null) {
+                          const pr = checkSetPR(selectedExerciseId, s.setNumber, s.weight, s.reps, historicalPRData);
+                          if (pr.isPR) {
+                            next[index] = { ...next[index], isPR: true, prType: pr.improvement || 'both' };
+                            alert(`🔥 NEW PR! Set ${s.setNumber}: ${s.weight}kg × ${s.reps} reps`);
                           }
-                          return next;
-                        });
-                      }}
-                      onAddSet={() => addSet(selectedExerciseId)}
-                      onStartRest={startRestTimer}
-                      onNoteChange={(note) => setWorkoutExercises(prev => prev.map(ex => ex.id === selectedExerciseId ? { ...ex, note } : ex))}
-                      isDeload={isDeload}
-                      showRPE={showRPE}
-                      show1RM={show1RM}
-                      showPlateCalculator={showPlateCalculator}
-                      allExercises={ALL_EXERCISES}
-                      isSupersetWith={partnerName}
-                      onToggleSuperset={() => { if (currentEx.supersetWith) toggleSuperset(currentEx.id, currentEx.supersetWith); }}
-                      onOpenHistory={() => { setHistoryExerciseId(selectedExerciseId); setShowExerciseHistory(true); }}
-                    />
-                  );
-                })()}
+                        }
+                      }
+                      return next;
+                    });
+                  }}
+                  onAddSet={() => addSet(selectedExerciseId)}
+                  onStartRest={startRestTimer}
+                  onNoteChange={(note) => setWorkoutExercises(prev => prev.map(ex => ex.id === selectedExerciseId ? { ...ex, note } : ex))}
+                  isDeload={isDeload}
+                  showRPE={showRPE}
+                  show1RM={show1RM}
+                  showPlateCalculator={showPlateCalculator}
+                  allExercises={ALL_EXERCISES}
+                  isSupersetWith={activePartnerName}
+                  onToggleSuperset={() => { if (activeWorkoutEx.supersetWith) toggleSuperset(activeWorkoutEx.id, activeWorkoutEx.supersetWith); }}
+                  onOpenHistory={() => { setHistoryExerciseId(selectedExerciseId); setShowExerciseHistory(true); }}
+                />
                 <div className="max-w-4xl mx-auto mt-4 flex gap-3">
                   <button onClick={() => setSelectedExerciseId(null)} className="flex-1 py-3 rounded-lg bg-slate-800 text-white font-medium">Cancel</button>
                   <button onClick={handleSaveExercise} className="flex-1 py-3 rounded-lg bg-emerald-500 text-black font-medium">Save & Continue</button>
