@@ -41,6 +41,7 @@ export function useWorkoutSession() {
   const startSession = (workout: Workout) => {
     // setWorkoutStarted(true); // Don't auto-start
     setActiveWorkoutId(workout.id);
+    setSelectedWorkoutId(workout.id);
     setSessionStart(new Date().toISOString());
     setWorkoutStartTime(Date.now()); // This might need to be reset when actually starting?
     setWorkoutExercises(workout.exercises.map(ex => ({
