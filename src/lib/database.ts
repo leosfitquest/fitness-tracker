@@ -271,58 +271,23 @@ export async function shareSessionToFeed(sessionId: string): Promise<void> {
   // We could add a 'shared_at' timestamp to the session log if we want explicit sharing.
   const { error } = await supabase
     .from('workout_sessions')
-    .update({ is_public: true, shared_at: new Date().toISOString() }) // Assuming we added these columns or use simple logic
+    .update({ is_shared: true }) // SQL uses is_shared
     .eq('id', sessionId);
 
   if (error) {
-    // If columns don't exist, we might just ignore for phase 1 or rely on query logic
-    console.warn("Could not set shared_at. Ensure DB schema has is_public/shared_at columns.");
+    console.warn("Could not set is_shared.", error);
   }
 }
 
-export async function getUserFeed(userId: string): Promise<import('../types.ts').FeedItem[]> {
-  // 1. Get who we follow
-  const { data: following } = await supabase
-    .from('user_follows')
-    .select('following_id')
-    .eq('follower_id', userId);
-
-  const followingIds = (following || []).map(f => f.following_id);
-  followingIds.push(userId); // Include self
-
-  // 2. Fetch sessions from these users
-  const { data: sessions, error } = await supabase
-    .from('workout_sessions')
-    .select(`
-      *,
-      user:user_profiles(*),
-      likes:session_likes(count),
-      comments:session_comments(count)
-    `)
-    .in('user_id', followingIds)
-    .order('ended_at', { ascending: false })
-    .limit(20);
+export async function getUserFeed(userId: string, limit = 20, offset = 0): Promise<import('../types.ts').FeedItem[]> {
+  const { data, error } = await supabase
+    .rpc('get_user_feed', { user_id_param: userId, limit_param: limit, offset_param: offset });
 
   if (error) throw error;
 
-  // 3. Check if *we* liked them
-  // (Optimization: fetch our likes for these session IDs in one go)
-  const sessionIds = sessions.map((s: any) => s.id);
-  const { data: myLikes } = await supabase
-    .from('session_likes')
-    .select('session_id')
-    .eq('user_id', userId)
-    .in('session_id', sessionIds);
-
-  const myLikedIds = new Set((myLikes || []).map((l: any) => l.session_id));
-
-  // 4. Map to FeedItem type
-  return sessions.map((s: any) => ({
-    ...s,
-    // Map snake_case to camelCase for the base WorkoutSessionLog part?
-    // Actually our types use camelCase but DB returns snake_case.
-    // We need to map manually like in loadSessionLogs.
-    workoutId: s.workout_id,
+  return (data || []).map((s: any) => ({
+    id: s.session_id,
+    workoutId: s.workout_name, // RPC returns workout_name as string, might not have ID? SQL says workout_name.
     workoutName: s.workout_name,
     startedAt: s.started_at,
     endedAt: s.ended_at,
@@ -330,14 +295,18 @@ export async function getUserFeed(userId: string): Promise<import('../types.ts')
     totalVolume: s.total_volume,
     totalSetsCompleted: s.total_sets,
     isDeload: s.is_deload,
-    exercises: s.exercises, // JSONB usually comes as is
-    newPRs: s.new_prs || [],
+    exercises: s.exercises,
+    newPRs: s.new_prs,
 
-    // Social specific
-    user: s.user, // Joined profile
-    likes_count: s.likes?.[0]?.count || 0,
-    comments_count: s.comments?.[0]?.count || 0,
-    has_liked: myLikedIds.has(s.id)
+    // Social
+    user: {
+      id: s.user_id,
+      username: s.username,
+      avatar_url: s.avatar_url
+    } as import('../types.ts').UserProfile,
+    likes_count: s.likes_count,
+    comments_count: s.comments_count,
+    has_liked: s.user_has_liked
   }));
 }
 
@@ -371,10 +340,31 @@ export async function getComments(sessionId: string): Promise<import('../types.t
 export async function addComment(userId: string, sessionId: string, content: string): Promise<import('../types.ts').SessionComment> {
   const { data, error } = await supabase
     .from('session_comments')
-    .insert({ user_id: userId, session_id: sessionId, content })
+    .insert({ user_id: userId, session_id: sessionId, comment: content }) // SQL uses comment
     .select('*, user:user_profiles(*)')
     .single();
 
   if (error) throw error;
   return data;
+}
+
+export async function getNotifications(userId: string): Promise<import('../types.ts').Notification[]> {
+  const { data, error } = await supabase
+    .from('notifications')
+    .select('*, from_user:user_profiles!from_user_id(*)') // Manual join hint might be needed or just relational
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(50);
+
+  if (error) throw error;
+  return data || [];
+}
+
+export async function markNotificationsRead(notificationIds: string[]): Promise<void> {
+  const { error } = await supabase
+    .from('notifications')
+    .update({ is_read: true })
+    .in('id', notificationIds);
+
+  if (error) throw error;
 }

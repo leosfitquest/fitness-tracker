@@ -21,6 +21,7 @@ export function ProfilePage({ userId, onNavigate }: ProfilePageProps) {
     const [editName, setEditName] = useState('');
     const [editBio, setEditBio] = useState('');
     const [editWebsite, setEditWebsite] = useState('');
+    const [editIsPublic, setEditIsPublic] = useState(true);
 
     // Follow Stats
     const [followerCount, setFollowerCount] = useState(0);
@@ -77,7 +78,8 @@ export function ProfilePage({ userId, onNavigate }: ProfilePageProps) {
             const updated = await updateProfile(profile.id, {
                 full_name: editName,
                 bio: editBio,
-                website: editWebsite
+                website: editWebsite,
+                is_public: editIsPublic
             });
             setProfile(updated);
             setIsEditing(false);
@@ -129,6 +131,17 @@ export function ProfilePage({ userId, onNavigate }: ProfilePageProps) {
                                     <input value={editName} onChange={e => setEditName(e.target.value)} placeholder="Full Name" className="w-full p-2 rounded bg-background border border-border" />
                                     <textarea value={editBio} onChange={e => setEditBio(e.target.value)} placeholder="Bio" className="w-full p-2 rounded bg-background border border-border" rows={2} />
                                     <input value={editWebsite} onChange={e => setEditWebsite(e.target.value)} placeholder="Website" className="w-full p-2 rounded bg-background border border-border" />
+                                    <div className="flex items-center gap-2 py-2">
+                                        <label className="text-sm font-bold text-foreground flex items-center gap-2 cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                checked={editIsPublic}
+                                                onChange={e => setEditIsPublic(e.target.checked)}
+                                                className="w-4 h-4 rounded border-border bg-secondary text-primary focus:ring-primary"
+                                            />
+                                            Public Profile
+                                        </label>
+                                    </div>
                                     <div className="flex gap-2">
                                         <button onClick={handleSaveProfile} className="px-4 py-1.5 bg-emerald-500 text-white rounded text-sm font-bold">Save</button>
                                         <button onClick={() => setIsEditing(false)} className="px-4 py-1.5 bg-slate-700 text-white rounded text-sm">Cancel</button>
@@ -164,8 +177,8 @@ export function ProfilePage({ userId, onNavigate }: ProfilePageProps) {
                                             <button
                                                 onClick={handleFollowToggle}
                                                 className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${isFollowing
-                                                        ? 'bg-secondary text-foreground border border-border'
-                                                        : 'bg-primary text-primary-foreground'
+                                                    ? 'bg-secondary text-foreground border border-border'
+                                                    : 'bg-primary text-primary-foreground'
                                                     }`}
                                             >
                                                 {isFollowing ? 'Following' : 'Follow'}

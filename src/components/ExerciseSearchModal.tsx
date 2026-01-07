@@ -1,9 +1,11 @@
 import { useState, useMemo } from 'react';
 import * as ReactWindow from 'react-window';
+// @ts-ignore
+const List = ReactWindow.FixedSizeList || (ReactWindow as any).default?.FixedSizeList;
 import type { Exercise } from '../types.ts';
 import { useExercisePreferences } from '../hooks/useExercisePreferences';
 
-const List = ReactWindow.FixedSizeList;
+
 
 interface ExerciseSearchModalProps {
   isOpen: boolean;

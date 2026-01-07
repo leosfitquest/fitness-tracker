@@ -50,7 +50,16 @@ export function FollowList({ userId, type, onClose, onNavigate }: FollowListProp
                     ) : (
                         <div className="space-y-1">
                             {users.map(u => (
-                                <div key={u.id} className="flex items-center gap-3 p-2 hover:bg-secondary/50 rounded-lg cursor-pointer">
+                                <div
+                                    key={u.id}
+                                    className="flex items-center gap-3 p-2 hover:bg-secondary/50 rounded-lg cursor-pointer"
+                                    onClick={() => {
+                                        if (onNavigate) {
+                                            onNavigate(u.id); // Assuming onNavigate takes userId or we navigate to /profile/:id
+                                        }
+                                        onClose();
+                                    }}
+                                >
                                     <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold overflow-hidden">
                                         {u.avatar_url ? <img src={u.avatar_url} className="w-full h-full object-cover" /> : u.username?.[0]?.toUpperCase()}
                                     </div>

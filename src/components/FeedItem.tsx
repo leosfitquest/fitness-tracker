@@ -12,6 +12,38 @@ export function FeedItem({ item, currentUserId }: FeedItemProps) {
     const [liked, setLiked] = useState(item.has_liked);
     const [likeCount, setLikeCount] = useState(item.likes_count);
 
+    // Comments state
+    const [showComments, setShowComments] = useState(false);
+    const [commentsList, setCommentsList] = useState<import('../types.ts').SessionComment[]>([]);
+    const [loadingComments, setLoadingComments] = useState(false);
+    const [newComment, setNewComment] = useState('');
+    const [commentsLoaded, setCommentsLoaded] = useState(false);
+
+    // Initial load of minimal comments if provided or needed?
+    // Doing lazy load on expand
+
+    if (showComments && !commentsLoaded) {
+        setLoadingComments(true);
+        import('../lib/database').then(({ getComments }) => {
+            getComments(item.id).then(data => {
+                setCommentsList(data);
+                setCommentsLoaded(true);
+            }).finally(() => setLoadingComments(false));
+        });
+    }
+
+    const handlePostComment = async () => {
+        if (!newComment.trim()) return;
+        try {
+            const { addComment } = await import('../lib/database');
+            const newC = await addComment(currentUserId, item.id, newComment);
+            setCommentsList(prev => [...prev, newC]);
+            setNewComment('');
+        } catch (e) {
+            console.error('Failed to post comment', e);
+        }
+    };
+
     const handleToggleLike = async () => {
         // Optimistic update
         const isNowLiked = !liked;
@@ -84,11 +116,61 @@ export function FeedItem({ item, currentUserId }: FeedItemProps) {
                     <span>{liked ? '❤️' : '🤍'}</span>
                     <span>{likeCount}</span>
                 </button>
-                <button className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
+                <button
+                    onClick={() => setShowComments(!showComments)}
+                    className={`flex items-center gap-1.5 text-sm transition-colors ${showComments ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+                >
                     <span>💬</span>
-                    <span>{item.comments_count}</span>
+                    <span>{item.comments_count + (commentsList.length > 0 ? commentsList.length : 0)}</span>
                 </button>
             </div>
+
+            {/* Comments Section */}
+            {showComments && (
+                <div className="mt-4 pt-3 border-t border-border space-y-3">
+                    {loadingComments ? (
+                        <div className="text-xs text-muted-foreground text-center">Loading comments...</div>
+                    ) : (
+                        <div className="space-y-3 max-h-60 overflow-y-auto pr-1 custom-scrollbar">
+                            {commentsList.map(c => (
+                                <div key={c.id} className="flex gap-2">
+                                    <div className="w-6 h-6 rounded-full bg-secondary flex-shrink-0 flex items-center justify-center text-xs overflow-hidden">
+                                        {c.user?.avatar_url ? <img src={c.user.avatar_url} className="w-full h-full object-cover" /> : c.user?.username?.[0]}
+                                    </div>
+                                    <div className="flex-1 min-w-0 bg-secondary/30 rounded-lg p-2">
+                                        <div className="flex justify-between items-baseline mb-0.5">
+                                            <span className="text-xs font-bold text-foreground">{c.user?.username}</span>
+                                            <span className="text-[10px] text-muted-foreground">{new Date(c.created_at).toLocaleDateString()}</span>
+                                        </div>
+                                        <p className="text-sm text-foreground/90 break-words">{c.comment}</p>
+                                    </div>
+                                </div>
+                            ))}
+                            {commentsList.length === 0 && (
+                                <div className="text-xs text-muted-foreground text-center py-2">No comments yet. Be the first!</div>
+                            )}
+                        </div>
+                    )}
+
+                    <div className="flex gap-2 mt-2">
+                        <input
+                            type="text"
+                            value={newComment}
+                            onChange={(e) => setNewComment(e.target.value)}
+                            placeholder="Add a comment..."
+                            className="flex-1 bg-secondary text-sm px-3 py-2 rounded-lg border border-border focus:border-primary focus:outline-none"
+                            onKeyDown={(e) => e.key === 'Enter' && handlePostComment()}
+                        />
+                        <button
+                            onClick={handlePostComment}
+                            disabled={!newComment.trim()}
+                            className="px-3 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-bold disabled:opacity-50"
+                        >
+                            Post
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

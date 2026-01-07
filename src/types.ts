@@ -111,12 +111,13 @@ export type SessionSetPR = {
 // --- Social Features ---
 
 export type UserProfile = {
-    id: string; // references auth.users.id
+    id: string;
     username: string;
     full_name?: string;
     avatar_url?: string;
     bio?: string;
-    website?: string;
+    website?: string; // Not in SQL, but good to have if we expand
+    is_public: boolean; // Added from SQL
     created_at: string;
 };
 
@@ -127,7 +128,6 @@ export type Follow = {
 };
 
 export type SessionLike = {
-    id: string;
     user_id: string;
     session_id: string;
     created_at: string;
@@ -135,10 +135,11 @@ export type SessionLike = {
 
 export type SessionComment = {
     id: string;
-    user_id: string;
     session_id: string;
-    content: string;
+    user_id: string;
+    comment: string; // Changed from content to comment to match SQL
     created_at: string;
+    updated_at: string;
     user?: UserProfile; // Joined data
 };
 
@@ -153,11 +154,12 @@ export type FeedItem = WorkoutSessionLog & {
 
 export type Notification = {
     id: string;
-    user_id: string; // Recipient
-    actor_id: string; // Who triggered it
+    user_id: string;
     type: 'follow' | 'like' | 'comment';
-    entity_id?: string; // session_id, etc.
+    from_user_id: string; // SQL: from_user_id
+    reference_id?: string; // SQL: reference_id
+    message?: string;
     is_read: boolean;
     created_at: string;
-    actor?: UserProfile; // Joined data
+    from_user?: UserProfile; // Joined data
 };

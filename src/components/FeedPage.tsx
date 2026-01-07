@@ -1,36 +1,17 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { getUserFeed } from '../lib/database';
+import { useFeed } from '../hooks/useFeed';
 import { FeedItem } from './FeedItem';
-import type { FeedItem as FeedItemType } from '../types.ts';
 
 export function FeedPage() {
-    const [feed, setFeed] = useState<FeedItemType[]>([]);
-    const [loading, setLoading] = useState(true);
+    const { feed, loading } = useFeed();
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
     useEffect(() => {
-        init();
+        supabase.auth.getUser().then(({ data: { user } }) => {
+            if (user) setCurrentUserId(user?.id);
+        });
     }, []);
-
-    const init = async () => {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-            setCurrentUserId(user.id);
-            loadFeed(user.id);
-        }
-    };
-
-    const loadFeed = async (userId: string) => {
-        try {
-            const data = await getUserFeed(userId);
-            setFeed(data);
-        } catch (e) {
-            console.error("Failed to load feed", e);
-        } finally {
-            setLoading(false);
-        }
-    };
 
     if (loading) return <div className="p-8 text-center text-muted-foreground">Loading Feed...</div>;
 

@@ -24,6 +24,7 @@ import { FeedPage } from "./components/FeedPage";
 import { ProfilePage } from "./components/ProfilePage";
 import { UserSearch } from "./components/UserSearch";
 import { UsernameModal } from "./components/UsernameModal";
+import { NotificationsPage } from "./components/NotificationsPage";
 
 // Hooks & Utils
 import { useWorkoutSession } from './hooks/useWorkoutSession';
@@ -704,6 +705,11 @@ function App() {
             setViewingUserId(uid);
             setCurrentPage('profile');
           }} />
+        )}
+
+        {/* NOTIFICATIONS */}
+        {currentPage === 'notifications' && mode === 'overview' && (
+          <NotificationsPage />
         )}
 
         {/* WORKOUTS (Replaced Dashboard/Exercises split) */}
