@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { FeedItem as FeedItemType } from '../types.ts';
 import { likeSession, unlikeSession } from '../lib/database';
 import { formatTime } from '../utils/math';
@@ -19,18 +19,18 @@ export function FeedItem({ item, currentUserId }: FeedItemProps) {
     const [newComment, setNewComment] = useState('');
     const [commentsLoaded, setCommentsLoaded] = useState(false);
 
-    // Initial load of minimal comments if provided or needed?
-    // Doing lazy load on expand
-
-    if (showComments && !commentsLoaded) {
-        setLoadingComments(true);
-        import('../lib/database').then(({ getComments }) => {
-            getComments(item.id).then(data => {
-                setCommentsList(data);
-                setCommentsLoaded(true);
-            }).finally(() => setLoadingComments(false));
-        });
-    }
+    // Load comments when expanded
+    useEffect(() => {
+        if (showComments && !commentsLoaded) {
+            setLoadingComments(true);
+            import('../lib/database').then(({ getComments }) => {
+                getComments(item.id).then(data => {
+                    setCommentsList(data);
+                    setCommentsLoaded(true);
+                }).finally(() => setLoadingComments(false));
+            });
+        }
+    }, [showComments, commentsLoaded, item.id]);
 
     const handlePostComment = async () => {
         if (!newComment.trim()) return;

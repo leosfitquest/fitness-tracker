@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
 import { searchUsers } from '../lib/database';
 import type { UserProfile } from '../types.ts';
-import { useDebounce } from '../hooks/useDebounce'; // We assume we might need this or use simple timeout
 
-// Simple debounce inside component if we don't have hook
+// Debounce hook implementation
 function useDebounceValue<T>(value: T, delay: number): T {
     const [debouncedValue, setDebouncedValue] = useState<T>(value);
     useEffect(() => {
