@@ -31,6 +31,7 @@ export function ExerciseSearchModal({
   const { favorites, recent, toggleFavorite, addToRecent } = useExercisePreferences();
 
   const filteredExercises = useMemo(() => {
+    if (!allExercises) return [];
     return allExercises.filter((ex) => {
       // 1. Text Search
       if (searchQuery.trim()) {

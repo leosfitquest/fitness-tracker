@@ -314,17 +314,19 @@ function App() {
     if (savedState && user) {
       try {
         const state = JSON.parse(savedState);
-        setMode('active');
-        setSelectedWorkoutId(state.selectedWorkoutId);
-        setSelectedExerciseId(state.selectedExerciseId);
-        setWorkoutExercises(state.workoutExercises || []);
-        setWorkoutExercisesData(state.workoutExercisesData || {});
-        setActiveSets(state.activeSets || []);
-        setSessionStart(state.sessionStart);
-        setSessionNotes(state.sessionNotes || '');
-        setIsDeload(state.isDeload || false);
-        setWorkoutStartTime(state.workoutStartTime);
-        setWorkoutStarted(state.workoutStarted || false);
+        if (state && typeof state === 'object') {
+          setMode('active');
+          setSelectedWorkoutId(state.selectedWorkoutId);
+          setSelectedExerciseId(state.selectedExerciseId);
+          setWorkoutExercises(state.workoutExercises || []);
+          setWorkoutExercisesData(state.workoutExercisesData || {});
+          setActiveSets(state.activeSets || []);
+          setSessionStart(state.sessionStart);
+          setSessionNotes(state.sessionNotes || '');
+          setIsDeload(state.isDeload || false);
+          setWorkoutStartTime(state.workoutStartTime);
+          setWorkoutStarted(state.workoutStarted || false);
+        }
       } catch (err) {
         console.error('Error restoring workout state:', err);
       }
@@ -342,13 +344,15 @@ function App() {
     if (savedSettings) {
       try {
         const settings = JSON.parse(savedSettings);
-        if (settings.showRPE !== undefined) setShowRPE(settings.showRPE);
-        if (settings.show1RM !== undefined) setShow1RM(settings.show1RM);
-        if (settings.showPlateCalculator !== undefined) setShowPlateCalculator(settings.showPlateCalculator);
-        if (settings.autoStartRest !== undefined) setAutoStartRest(settings.autoStartRest);
-        if (settings.customRestSeconds !== undefined) setCustomRestSeconds(settings.customRestSeconds);
-        if (settings.defaultRestTime !== undefined) setDefaultRestTime(settings.defaultRestTime);
-        if (settings.showAdvancedFeatures !== undefined) setShowAdvancedFeatures(settings.showAdvancedFeatures);
+        if (settings && typeof settings === 'object') {
+          if (settings.showRPE !== undefined) setShowRPE(settings.showRPE);
+          if (settings.show1RM !== undefined) setShow1RM(settings.show1RM);
+          if (settings.showPlateCalculator !== undefined) setShowPlateCalculator(settings.showPlateCalculator);
+          if (settings.autoStartRest !== undefined) setAutoStartRest(settings.autoStartRest);
+          if (settings.customRestSeconds !== undefined) setCustomRestSeconds(settings.customRestSeconds);
+          if (settings.defaultRestTime !== undefined) setDefaultRestTime(settings.defaultRestTime);
+          if (settings.showAdvancedFeatures !== undefined) setShowAdvancedFeatures(settings.showAdvancedFeatures);
+        }
       } catch (err) { }
     }
   }, []);
