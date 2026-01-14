@@ -1,10 +1,5 @@
 import { useState, useMemo } from 'react';
-import { List as ReactWindowList } from 'react-window';
-
-// Cast to any to avoid type mismatch between runtime export (List) and type definitions
-// which expect FixedSizeList (not exported) or define List differently.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const List = ReactWindowList as any;
+// import { List as ReactWindowList } from 'react-window'; // Removed for stability check
 import type { Exercise } from '../types.ts';
 import { useExercisePreferences } from '../hooks/useExercisePreferences';
 
@@ -42,15 +37,15 @@ export function ExerciseSearchModal({
       }
 
       // 2. Category/Tab Filter
-      if (activeFilter === 'favorites') return favorites.includes(ex.id);
-      if (activeFilter === 'recent') return recent.includes(ex.id);
+      if (activeFilter === 'favorites') return Array.isArray(favorites) && favorites.includes(ex.id);
+      if (activeFilter === 'recent') return Array.isArray(recent) && recent.includes(ex.id);
       if (activeFilter !== 'all' && ex.muscleGroup !== activeFilter) return false;
 
       return true;
     }).sort((a, b) => {
       // Favorites always on top if no specific sort
-      const aFav = favorites.includes(a.id);
-      const bFav = favorites.includes(b.id);
+      const aFav = Array.isArray(favorites) && favorites.includes(a.id);
+      const bFav = Array.isArray(favorites) && favorites.includes(b.id);
       if (aFav && !bFav) return -1;
       if (!aFav && bFav) return 1;
       return a.name.localeCompare(b.name);
@@ -65,43 +60,7 @@ export function ExerciseSearchModal({
     onClose();
   };
 
-  const Row = ({ index, style }: { index: number; style: React.CSSProperties }) => {
-    const ex = filteredExercises[index];
-    const isFav = favorites.includes(ex.id);
 
-    return (
-      <div style={style} className="px-2 py-1">
-        <div className="flex items-center gap-2 group h-full">
-          <button
-            onClick={(e) => { e.stopPropagation(); toggleFavorite(ex.id); }}
-            className={`p-2 rounded-lg transition-colors ${isFav ? 'text-red-500 hover:bg-red-500/10' : 'text-slate-600 hover:text-red-400 hover:bg-slate-800'}`}
-          >
-            {isFav ? '❤️' : '🤍'}
-          </button>
-          <button
-            onClick={() => handleSelect(ex.id)}
-            className="flex-1 h-full p-2 rounded-lg border border-border bg-card hover:border-primary transition-all text-left flex items-center gap-3"
-          >
-            {ex.imageUrl && (
-              <img
-                src={ex.imageUrl}
-                alt={ex.name}
-                className="w-10 h-10 object-cover rounded-md bg-secondary"
-              />
-            )}
-            <div className="flex-1 min-w-0">
-              <h3 className="font-bold text-foreground group-hover:text-primary truncate">
-                {ex.name}
-              </h3>
-              <p className="text-xs text-muted-foreground uppercase">
-                {ex.muscleGroup}
-              </p>
-            </div>
-          </button>
-        </div>
-      </div>
-    );
-  };
 
   if (!isOpen) return null;
 
@@ -150,17 +109,42 @@ export function ExerciseSearchModal({
         </div>
 
         {/* Exercise List */}
-        <div className="flex-1 min-h-0">
+        <div className="flex-1 min-h-0 overflow-y-auto">
           {filteredExercises.length > 0 ? (
-            <List
-              height={500} // This should specific or calculated, but standard for modal 
-              itemCount={filteredExercises.length}
-              itemSize={70}
-              width="100%"
-              className="no-scrollbar"
-            >
-              {Row}
-            </List>
+            <div className="flex flex-col">
+              {filteredExercises.map((ex) => (
+                <div key={ex.id} className="px-2 py-1" style={{ height: 70 }}>
+                  <div className="flex items-center gap-2 group h-full">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); toggleFavorite(ex.id); }}
+                      className={`p-2 rounded-lg transition-colors ${Array.isArray(favorites) && favorites.includes(ex.id) ? 'text-red-500 hover:bg-red-500/10' : 'text-slate-600 hover:text-red-400 hover:bg-slate-800'}`}
+                    >
+                      {Array.isArray(favorites) && favorites.includes(ex.id) ? '❤️' : '🤍'}
+                    </button>
+                    <button
+                      onClick={() => handleSelect(ex.id)}
+                      className="flex-1 h-full p-2 rounded-lg border border-border bg-card hover:border-primary transition-all text-left flex items-center gap-3"
+                    >
+                      {ex.imageUrl && (
+                        <img
+                          src={ex.imageUrl}
+                          alt={ex.name}
+                          className="w-10 h-10 object-cover rounded-md bg-secondary"
+                        />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-bold text-foreground group-hover:text-primary truncate">
+                          {ex.name}
+                        </h3>
+                        <p className="text-xs text-muted-foreground uppercase">
+                          {ex.muscleGroup}
+                        </p>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : (
             <div className="h-full flex flex-col items-center justify-center text-muted-foreground opacity-50">
               <span className="text-4xl mb-2">🔍</span>
