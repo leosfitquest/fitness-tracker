@@ -1,7 +1,10 @@
 import { useState, useMemo } from 'react';
-import * as ReactWindow from 'react-window';
-// @ts-ignore
-const List = ReactWindow.FixedSizeList || (ReactWindow as any).default?.FixedSizeList;
+import { List as ReactWindowList } from 'react-window';
+
+// Cast to any to avoid type mismatch between runtime export (List) and type definitions
+// which expect FixedSizeList (not exported) or define List differently.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const List = ReactWindowList as any;
 import type { Exercise } from '../types.ts';
 import { useExercisePreferences } from '../hooks/useExercisePreferences';
 

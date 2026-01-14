@@ -4,7 +4,7 @@ import { useFeed } from '../hooks/useFeed';
 import { FeedItem } from './FeedItem';
 
 export function FeedPage() {
-    const { feed, loading } = useFeed();
+    const { feed, loading, error } = useFeed();
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
     useEffect(() => {
@@ -14,6 +14,17 @@ export function FeedPage() {
     }, []);
 
     if (loading) return <div className="p-8 text-center text-muted-foreground">Loading Feed...</div>;
+
+    if (error) {
+        return (
+            <div className="p-8 text-center">
+                <div className="bg-red-500/10 text-red-500 p-4 rounded-lg inline-block text-left">
+                    <p className="font-bold">Error loading feed:</p>
+                    <pre className="text-xs mt-2 overflow-auto max-w-sm">{error.message}</pre>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="pb-24 max-w-2xl mx-auto px-4 pt-6">

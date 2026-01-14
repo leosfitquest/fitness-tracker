@@ -17,6 +17,7 @@ export function useFeed() {
             const data = await getUserFeed(user.id);
             setFeed(data);
         } catch (err) {
+            console.error("Feed load error:", err);
             setError(err as Error);
         } finally {
             setLoading(false);
