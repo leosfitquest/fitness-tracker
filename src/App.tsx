@@ -719,10 +719,9 @@ function App() {
             historicalPRData={historicalPRData}
             onSelectExercise={setSelectedExerciseId}
             onAddExercise={() => setShowExerciseSearchModal(true)}
-          />
             showRPE={showRPE}
-        show1RM={show1RM}
-        showPlateCalculator={showPlateCalculator}
+            show1RM={show1RM}
+            showPlateCalculator={showPlateCalculator}
           />
         )}
 
