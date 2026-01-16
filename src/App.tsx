@@ -357,18 +357,17 @@ function App() {
 
     setSessionPRs([]);
 
-    // Find last session for default values
-    const lastSession = sessionLogs
-      .filter(log => log.workoutId === id)
-      .sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())[0];
+    setSessionPRs([]);
 
-    let exercises: Exercise[] = [];
-    if (lastSession && lastSession.exercises.length > 0) {
-      exercises = lastSession.exercises
-        .map(ex => ALL_EXERCISES.find(e => e.id === ex.exerciseId))
-        .filter((ex): ex is Exercise => ex !== undefined);
-    } else if (workout.exercises.length > 0) {
-      exercises = workout.exercises;
+    // We use the workout template exercises directly.
+    // Future improvement: Use last session data to pre-fill weights/reps logic.
+
+    let exercises = workout.exercises;
+
+    // Optional: We could use lastSession to pre-fill weights, but for now 
+    // let's ensure the STRUCTURE is correct by using the template.
+    if (!exercises || exercises.length === 0) {
+      console.warn("Starting workout with no exercises. Workout:", workout);
     }
 
     const workoutToStart = { ...workout, exercises };

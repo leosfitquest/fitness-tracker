@@ -7,9 +7,7 @@ interface BottomNavProps {
 export function BottomNav({ currentPage, onNavigate }: BottomNavProps) {
   const navItems = [
     { id: 'feed', icon: '🏠', label: 'Feed' },
-    { id: 'search', icon: '🔍', label: 'Search' },
     { id: 'dashboard', icon: '💪', label: 'Workouts' },
-    { id: 'notifications', icon: '🔔', label: 'Updates' },
     { id: 'profile', icon: '👤', label: 'Profile' },
   ];
 

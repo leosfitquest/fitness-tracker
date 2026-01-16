@@ -106,7 +106,8 @@ export function ProfilePage({ userId, onSelectUser }: ProfilePageProps) {
             setIsFollowing(!isFollowing);
         } catch (e) {
             console.error(e);
-            alert(`Error following user: ${e instanceof Error ? e.message : 'Unknown error'}`);
+            const timerMsg = e instanceof Error ? e.message : JSON.stringify(e);
+            alert(`Error following user: ${timerMsg}`);
         }
     };
 

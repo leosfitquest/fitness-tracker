@@ -37,11 +37,11 @@ export function FeedPage({ onNavigate }: FeedPageProps) {
                 <h1 className="text-2xl font-bold text-foreground">Activity Feed</h1>
                 <div className="flex gap-4">
                     <button
-                        onClick={() => refreshFeed()}
+                        onClick={() => alert('Notifications coming soon!')} // Placeholder for now, later open notifications
                         className="p-2 text-muted-foreground hover:text-foreground transition-colors"
-                        title="Refresh"
+                        title="Notifications"
                     >
-                        🔄
+                        🔔
                     </button>
                     <button
                         onClick={() => onNavigate('search')}
