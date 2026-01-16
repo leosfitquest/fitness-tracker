@@ -179,7 +179,10 @@ export function ProfilePage({ userId, onSelectUser }: ProfilePageProps) {
                                     {/* Actions */}
                                     <div className="pt-4">
                                         {isOwnProfile ? (
-                                            <button onClick={() => setIsEditing(true)} className="px-4 py-2 border border-border rounded-lg text-sm font-medium hover:bg-secondary">Edit Profile</button>
+                                            <div className="flex gap-2">
+                                                <button onClick={() => setIsEditing(true)} className="px-4 py-2 border border-border rounded-lg text-sm font-medium hover:bg-secondary">Edit Profile</button>
+                                                <button onClick={() => supabase.auth.signOut()} className="px-4 py-2 border border-red-900/30 text-red-500 rounded-lg text-sm font-medium hover:bg-red-500/10">Sign Out</button>
+                                            </div>
                                         ) : (
                                             <button
                                                 onClick={handleFollowToggle}

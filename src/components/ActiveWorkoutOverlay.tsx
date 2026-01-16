@@ -36,6 +36,9 @@ interface ActiveWorkoutOverlayProps {
     // Data
     allExercises: Exercise[];
     historicalPRData: SetPR[];
+
+    // UI Actions
+    onAddExercise: () => void;
 }
 
 export function ActiveWorkoutOverlay({
@@ -61,7 +64,8 @@ export function ActiveWorkoutOverlay({
     showPlateCalculator,
     isDeload,
     allExercises,
-    historicalPRData
+    historicalPRData,
+    onAddExercise
 }: ActiveWorkoutOverlayProps) {
     const [isExpanded, setIsExpanded] = useState(true);
     const [draggedExerciseIndex, setDraggedExerciseIndex] = useState<number | null>(null);
@@ -278,6 +282,13 @@ export function ActiveWorkoutOverlay({
                                 </div>
                             );
                         })}
+
+                        <button
+                            onClick={onAddExercise}
+                            className="w-full py-4 mb-4 rounded-xl border-2 border-dashed border-slate-700 text-slate-400 hover:text-white hover:border-slate-500 hover:bg-slate-800/50 flex items-center justify-center gap-2 font-bold transition-all"
+                        >
+                            <span className="text-xl">+</span> Add Exercise
+                        </button>
 
                         <button
                             onClick={onDiscardWorkout}

@@ -96,7 +96,7 @@ function App() {
   const [isLoadingData, setIsLoadingData] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [workouts, setWorkouts] = useState<Workout[]>([]);
-  const [sessionLogs, setSessionLogs] = useState<WorkoutSessionLog[]>([]);
+
   const [exerciseRecords, setExerciseRecords] = useState<Record<string, ExerciseRecord>>({});
   const [historicalPRData, setHistoricalPRData] = useState<SetPR[]>([]);
 
@@ -244,7 +244,7 @@ function App() {
         ]);
 
         setWorkouts(loadedWorkouts);
-        setSessionLogs(loadedLogs);
+        // setSessionLogs(loadedLogs);
         setExerciseRecords(loadedRecords);
 
         // Process Historical PR Data from Logs
@@ -546,7 +546,7 @@ function App() {
     };
 
 
-    setSessionLogs(prev => [log, ...prev]);
+
 
     try {
       await saveSessionLog(log, user.id);
@@ -718,9 +718,11 @@ function App() {
             allExercises={ALL_EXERCISES}
             historicalPRData={historicalPRData}
             onSelectExercise={setSelectedExerciseId}
+            onAddExercise={() => setShowExerciseSearchModal(true)}
+          />
             showRPE={showRPE}
-            show1RM={show1RM}
-            showPlateCalculator={showPlateCalculator}
+        show1RM={show1RM}
+        showPlateCalculator={showPlateCalculator}
           />
         )}
 
