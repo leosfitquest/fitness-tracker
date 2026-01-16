@@ -6,11 +6,12 @@ import { FollowList } from './FollowList'; // To be created
 
 interface ProfilePageProps {
     userId?: string; // If undefined, current user
-    onNavigate?: (page: string) => void;
+    onSelectUser?: (userId: string) => void;
 }
 
-export function ProfilePage({ userId, onNavigate }: ProfilePageProps) {
+export function ProfilePage({ userId, onSelectUser }: ProfilePageProps) {
     const [profile, setProfile] = useState<UserProfile | null>(null);
+    // ... existing state ...
     const [workouts, setWorkouts] = useState<Workout[]>([]);
     const [isEditing, setIsEditing] = useState(false);
     const [loading, setLoading] = useState(true);
@@ -48,6 +49,7 @@ export function ProfilePage({ userId, onNavigate }: ProfilePageProps) {
                 setEditName(p.full_name || '');
                 setEditBio(p.bio || '');
                 setEditWebsite(p.website || '');
+                setEditIsPublic(p.is_public ?? true);
 
                 // Load stats
                 const followers = await getFollowers(targetId);
@@ -89,7 +91,10 @@ export function ProfilePage({ userId, onNavigate }: ProfilePageProps) {
     };
 
     const handleFollowToggle = async () => {
-        if (!currentUser || !profile) return;
+        if (!currentUser || !profile) {
+            console.error("Missing user or profile", { currentUser, profile });
+            return;
+        }
         try {
             if (isFollowing) {
                 await unfollowUser(currentUser, profile.id);
@@ -101,6 +106,7 @@ export function ProfilePage({ userId, onNavigate }: ProfilePageProps) {
             setIsFollowing(!isFollowing);
         } catch (e) {
             console.error(e);
+            alert(`Error following user: ${e instanceof Error ? e.message : 'Unknown error'}`);
         }
     };
 
@@ -221,6 +227,7 @@ export function ProfilePage({ userId, onNavigate }: ProfilePageProps) {
                     type={showFollowList}
                     userId={profile.id}
                     onClose={() => setShowFollowList(null)}
+                    onNavigate={onSelectUser}
                 />
             )}
         </div>
