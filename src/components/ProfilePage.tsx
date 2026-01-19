@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { getProfile, updateProfile, getFollowers, getFollowing, followUser, unfollowUser, loadWorkouts } from '../lib/database';
+import { getProfile, updateProfile, getFollowers, getFollowing, followUser, unfollowUser, loadWorkouts, uploadAvatar } from '../lib/database';
 import { supabase } from '../lib/supabase';
 import type { UserProfile, Workout } from '../types.ts';
-import { FollowList } from './FollowList'; // To be created
+import { FollowList } from './FollowList';
 
 interface ProfilePageProps {
     userId?: string; // If undefined, current user
@@ -11,12 +11,12 @@ interface ProfilePageProps {
 
 export function ProfilePage({ userId, onSelectUser }: ProfilePageProps) {
     const [profile, setProfile] = useState<UserProfile | null>(null);
-    // ... existing state ...
     const [workouts, setWorkouts] = useState<Workout[]>([]);
     const [isEditing, setIsEditing] = useState(false);
     const [loading, setLoading] = useState(true);
     const [currentUser, setCurrentUser] = useState<string | null>(null);
     const [isFollowing, setIsFollowing] = useState(false);
+    const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
     // Edit Form State
     const [editName, setEditName] = useState('');
@@ -111,6 +111,31 @@ export function ProfilePage({ userId, onSelectUser }: ProfilePageProps) {
         }
     };
 
+    const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        if (!event.target.files || event.target.files.length === 0 || !profile) {
+            return;
+        }
+
+        const file = event.target.files[0];
+        setUploadingAvatar(true);
+
+        try {
+            const publicUrl = await uploadAvatar(profile.id, file);
+
+            // Update profile with new avatar URL
+            const updated = await updateProfile(profile.id, {
+                avatar_url: publicUrl
+            });
+
+            setProfile(updated);
+        } catch (error) {
+            console.error('Error uploading avatar:', error);
+            alert('Error uploading avatar. Make sure the file is an image.');
+        } finally {
+            setUploadingAvatar(false);
+        }
+    };
+
     const isOwnProfile = !userId || userId === currentUser;
 
     if (loading) return <div className="p-8 text-center text-muted-foreground">Loading Profile...</div>;
@@ -123,11 +148,27 @@ export function ProfilePage({ userId, onSelectUser }: ProfilePageProps) {
                 <div className="max-w-4xl mx-auto px-4 pt-8">
                     <div className="flex flex-col md:flex-row items-center gap-6">
                         {/* Avatar */}
-                        <div className="w-24 h-24 rounded-full bg-primary/20 text-primary flex items-center justify-center text-3xl font-bold border-4 border-background shadow-xl">
-                            {profile.avatar_url ? (
-                                <img src={profile.avatar_url} className="w-full h-full rounded-full object-cover" />
-                            ) : (
-                                profile.username?.[0]?.toUpperCase() || '?'
+                        <div className="relative group">
+                            <div className="w-24 h-24 rounded-full bg-primary/20 text-primary flex items-center justify-center text-3xl font-bold border-4 border-background shadow-xl overflow-hidden">
+                                {profile.avatar_url ? (
+                                    <img src={profile.avatar_url} className="w-full h-full rounded-full object-cover" />
+                                ) : (
+                                    profile.username?.[0]?.toUpperCase() || '?'
+                                )}
+                            </div>
+
+                            {/* Edit Overlay - Only show when editing own profile */}
+                            {isOwnProfile && isEditing && (
+                                <label className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <span className="text-xs text-white font-bold">{uploadingAvatar ? '...' : 'Upload'}</span>
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={handleAvatarUpload}
+                                        className="hidden"
+                                        disabled={uploadingAvatar}
+                                    />
+                                </label>
                             )}
                         </div>
 
@@ -156,7 +197,10 @@ export function ProfilePage({ userId, onSelectUser }: ProfilePageProps) {
                                 </div>
                             ) : (
                                 <>
-                                    <h1 className="text-2xl font-bold text-foreground">{profile.full_name || profile.username}</h1>
+                                    <div className="flex items-baseline justify-center md:justify-start gap-2">
+                                        <h1 className="text-2xl font-bold text-foreground">{profile.full_name || profile.username}</h1>
+                                        {profile.is_public === false && <span className="text-xs bg-secondary px-2 py-0.5 rounded text-muted-foreground">Private</span>}
+                                    </div>
                                     <p className="text-muted-foreground">@{profile.username}</p>
                                     {profile.bio && <p className="text-sm text-foreground/80 max-w-md">{profile.bio}</p>}
 
@@ -179,7 +223,7 @@ export function ProfilePage({ userId, onSelectUser }: ProfilePageProps) {
                                     {/* Actions */}
                                     <div className="pt-4">
                                         {isOwnProfile ? (
-                                            <div className="flex gap-2">
+                                            <div className="flex gap-2 justify-center md:justify-start">
                                                 <button onClick={() => setIsEditing(true)} className="px-4 py-2 border border-border rounded-lg text-sm font-medium hover:bg-secondary">Edit Profile</button>
                                                 <button onClick={() => supabase.auth.signOut()} className="px-4 py-2 border border-red-900/30 text-red-500 rounded-lg text-sm font-medium hover:bg-red-500/10">Sign Out</button>
                                             </div>
@@ -226,6 +270,7 @@ export function ProfilePage({ userId, onSelectUser }: ProfilePageProps) {
                 </div>
             </div>
 
+            {/* Follow List Modal */}
             {showFollowList && (
                 <FollowList
                     type={showFollowList}
