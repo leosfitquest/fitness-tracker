@@ -160,7 +160,7 @@ function App() {
     saveExercise,
     removeExercise,
     moveExercise,
-    // toggleSuperset,
+    toggleSuperset,
     addExercisesToWorkout,
     // applyTemplate, 
     // activeWorkoutId,
@@ -729,6 +729,8 @@ function App() {
             onCompleteWorkout={handleCompleteWorkoutSession}
             onDiscardWorkout={() => setShowDiscardConfirm(true)}
             onOpenSettings={() => setShowWorkoutSettings(true)}
+            showSupersetOptions={showSupersetOptions}
+            onToggleSuperset={toggleSuperset}
 
             onSetChange={(_, sets) => setActiveSets(sets)}
             onRemoveExercise={removeExercise}

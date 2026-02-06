@@ -40,6 +40,10 @@ interface ActiveWorkoutOverlayProps {
     // UI Actions
     onAddExercise: () => void;
     onOpenSettings: () => void;
+
+    // Superset Actions
+    showSupersetOptions?: boolean;
+    onToggleSuperset?: (id1: string, id2: string) => void;
 }
 
 export function ActiveWorkoutOverlay({
@@ -67,7 +71,9 @@ export function ActiveWorkoutOverlay({
     allExercises,
     historicalPRData,
     onAddExercise,
-    onOpenSettings
+    onOpenSettings,
+    showSupersetOptions,
+    onToggleSuperset,
 }: ActiveWorkoutOverlayProps) {
     const [isExpanded, setIsExpanded] = useState(true);
     const [draggedExerciseIndex, setDraggedExerciseIndex] = useState<number | null>(null);
@@ -185,7 +191,18 @@ export function ActiveWorkoutOverlay({
                             muscleGroup={workoutExercises.find(e => e.id === selectedExerciseId)?.muscleGroup || ""}
                             sets={activeSets}
                             note={workoutExercises.find(e => e.id === selectedExerciseId)?.notes}
-                            isSupersetWith={undefined} // TODO: Pass superset info if needed
+                            isSupersetWith={(() => {
+                                const current = workoutExercises.find(e => e.id === selectedExerciseId);
+                                if (!current?.supersetWith) return undefined;
+                                const partner = workoutExercises.find(e => e.id === current.supersetWith);
+                                return partner?.name;
+                            })()}
+                            onToggleSuperset={() => {
+                                const current = workoutExercises.find(e => e.id === selectedExerciseId);
+                                if (current?.supersetWith && onToggleSuperset) {
+                                    onToggleSuperset(current.id, current.supersetWith);
+                                }
+                            }}
                             onSetChange={(index, field, value) => {
                                 const newSets = [...activeSets];
                                 newSets[index] = { ...newSets[index], [field]: value };
@@ -260,6 +277,7 @@ export function ActiveWorkoutOverlay({
                                             ? "bg-emerald-950/10 border-emerald-500/30 hover:bg-emerald-950/20"
                                             : "bg-card border-border hover:border-slate-600"
                                         }
+                                ${ex.supersetGroup ? 'border-l-4 border-l-blue-500' : ''}
                             `}
                                 >
                                     {/* Drag Handle */}
@@ -276,17 +294,45 @@ export function ActiveWorkoutOverlay({
 
                                     {/* Info */}
                                     <div className="flex-1 min-w-0">
-                                        <h3 className={`font-bold text-base truncate ${isCompleted ? 'text-emerald-400' : 'text-white'}`}>
-                                            {ex.name}
-                                        </h3>
+                                        <div className="flex items-center gap-2">
+                                            <h3 className={`font-bold text-base truncate ${isCompleted ? 'text-emerald-400' : 'text-white'}`}>
+                                                {ex.name}
+                                            </h3>
+                                            {ex.supersetGroup && (
+                                                <span className="text-[10px] bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded border border-blue-500/30">
+                                                    LINKED
+                                                </span>
+                                            )}
+                                        </div>
                                         <div className="flex items-center gap-2 text-xs text-slate-400">
                                             <span className="uppercase">{ex.muscleGroup}</span>
                                             {isCompleted && <span>• {workoutExercisesData[ex.id]?.sets?.length} Sets</span>}
                                         </div>
                                     </div>
 
+                                    {/* Superset Link Button (Only if option enabled) */}
+                                    {showSupersetOptions && onToggleSuperset && index < workoutExercises.length - 1 && (
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                const nextEx = workoutExercises[index + 1];
+                                                onToggleSuperset(ex.id, nextEx.id);
+                                            }}
+                                            className={`
+                                            p-2 rounded-lg transition-all
+                                            ${ex.supersetWith === workoutExercises[index + 1].id
+                                                    ? 'text-blue-400 bg-blue-500/20 hover:bg-blue-500/30'
+                                                    : 'text-slate-600 hover:text-blue-400 hover:bg-slate-800'
+                                                }
+                                        `}
+                                            title={ex.supersetWith === workoutExercises[index + 1].id ? "Unlink Superset" : "Link with next exercise"}
+                                        >
+                                            🔗
+                                        </button>
+                                    )}
+
                                     {/* Checkmark */}
-                                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center
+                                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0
                                 ${isCompleted ? 'border-emerald-500 bg-emerald-500 text-black' : 'border-slate-600'}
                             `}>
                                         {isCompleted && <span className="text-xs font-bold">✓</span>}
