@@ -395,49 +395,69 @@ function App() {
     }
   };
 
-  const handleApplyTemplate = (template: WorkoutTemplate | null) => {
+  const handleApplyTemplate = async (template: WorkoutTemplate | null) => {
+    // 1. QUICK START (Empty)
     if (!template) {
-      // Quick Start Logic
-      const quickWorkout: Workout = {
-        id: `quick-${Date.now()}`,
-        name: "Quick Start Session",
-        description: "Freestyle workout",
-        exerciseCount: 0,
-        exercises: [],
-        userId: user?.id || 'temp',
-        createdAt: new Date().toISOString(),
-      };
-      startWorkout(quickWorkout);
-      setMode("active");
+      await handleQuickCreateWorkout(); // Reuse existing logic for empty workout
       setShowTemplateModal(false);
       return;
     }
 
-    const templateExercises = template.exercises
-      .map(te => {
-        const exercise = ALL_EXERCISES.find(ex =>
-          ex.name.toLowerCase().includes(te.exerciseName.toLowerCase()) ||
-          te.exerciseName.toLowerCase().includes(ex.name.toLowerCase())
-        );
-        if (exercise) {
-          return {
-            id: exercise.id,
-            exerciseId: exercise.id,
-            name: exercise.name,
-            muscleGroup: exercise.muscleGroup,
-            imageUrl: exercise.imageUrl,
-            targetSets: te.sets,
-            targetReps: te.repsRange,
-            notes: te.notes || '',
-          } as WorkoutExercise;
-        }
-        return null;
-      })
-      .filter(Boolean) as WorkoutExercise[];
+    // 2. TEMPLATE SELECTED
+    // Determine context: Are we adding to active workout or creating new?
+    // For now, usage in WorkoutsPage implies "Create New". 
+    // If we ever invoke this from ActiveWorkoutOverlay, we'd need a flag or check 'mode'.
+    // Since there is no UI to invoke this from ActiveWorkoutOverlay yet, we assume "Create New".
 
-    addExercisesToWorkout(templateExercises);
-    alert(`✅ Added ${templateExercises.length} exercises from "${template.name}"`);
-    setShowTemplateModal(false);
+    if (!user) return;
+
+    try {
+      // Create new workout from template
+      const templateExercises: WorkoutExercise[] = template.exercises
+        .map(te => {
+          const exercise = ALL_EXERCISES.find(ex =>
+            ex.name.toLowerCase().includes(te.exerciseName.toLowerCase()) ||
+            te.exerciseName.toLowerCase().includes(ex.name.toLowerCase())
+          );
+          if (exercise) {
+            return {
+              id: crypto.randomUUID(), // New unique ID for this instance
+              exerciseId: exercise.id,
+              name: exercise.name,
+              muscleGroup: exercise.muscleGroup,
+              imageUrl: exercise.imageUrl,
+              targetSets: te.sets,
+              targetReps: te.repsRange,
+              notes: te.notes || '',
+              sets: [], // Initialize empty sets
+              volume: 0
+            } as WorkoutExercise;
+          }
+          return null;
+        })
+        .filter(Boolean) as WorkoutExercise[];
+
+      const newWorkout = await saveWorkout({
+        name: template.name,
+        description: template.description,
+        exercises: templateExercises,
+        userId: user.id
+      }, user.id);
+
+      setWorkouts(prev => [newWorkout, ...prev]);
+
+      // Auto-start the workout?
+      // User likely wants to start immediately if they tapped "Create".
+      // But maybe they just want to save it?
+      // Let's START it for now, consistent with "Quick Create".
+      handleStartWorkout(newWorkout.id);
+
+      setShowTemplateModal(false);
+
+    } catch (err) {
+      console.error("Error creating workout from template:", err);
+      alert("Error creating workout from template");
+    }
   };
 
   const handleSaveExercise = async () => {
@@ -673,7 +693,7 @@ function App() {
                 return c;
               });
             }}
-            onQuickCreate={handleQuickCreateWorkout}
+            onQuickCreate={() => setShowTemplateModal(true)}
           />
         )}
 
