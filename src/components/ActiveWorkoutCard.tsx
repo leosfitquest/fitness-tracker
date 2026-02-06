@@ -23,6 +23,7 @@ interface ActiveWorkoutCardProps {
   showRPE: boolean;
   show1RM: boolean;
   showPlateCalculator: boolean;
+  availablePlates?: number[];
   allExercises: Exercise[];
 }
 
@@ -41,6 +42,7 @@ export function ActiveWorkoutCard({
   showRPE,
   show1RM,
   showPlateCalculator,
+  availablePlates,
   allExercises,
   isSupersetWith,
   // supersetGroup,
@@ -173,6 +175,7 @@ export function ActiveWorkoutCard({
               showRPE={showRPE}
               show1RM={show1RM}
               showPlateCalculator={showPlateCalculator}
+              availablePlates={availablePlates}
             />
           ))}
 

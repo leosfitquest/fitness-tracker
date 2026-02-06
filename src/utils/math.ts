@@ -52,3 +52,29 @@ export const formatTime = (seconds: number): string => {
     }
     return `${mins}:${secs.toString().padStart(2, '0')}`;
 };
+
+export const calculatePlates = (totalWeight: number, availablePlates: number[] = [25, 20, 15, 10, 5, 2.5, 1.25]): string => {
+    const barWeight = 20;
+    const weightPerSide = (totalWeight - barWeight) / 2;
+    if (weightPerSide <= 0) return 'Bar only (20kg)';
+
+    // Sort plates descending to ensure largest are used first
+    const plates = [...availablePlates].sort((a, b) => b - a);
+
+    let remaining = weightPerSide;
+    const result: string[] = [];
+
+    for (const plate of plates) {
+        const count = Math.floor(remaining / plate);
+        if (count > 0) {
+            result.push(`${plate}kg × ${count}`);
+            remaining -= plate * count;
+        }
+    }
+
+    if (remaining > 0.1) {
+        result.push(`${remaining.toFixed(2)}kg missing`);
+    }
+
+    return result.length > 0 ? result.join(' + ') : 'Bar only';
+};

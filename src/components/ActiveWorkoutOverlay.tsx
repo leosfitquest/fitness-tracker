@@ -44,6 +44,7 @@ interface ActiveWorkoutOverlayProps {
     // Superset Actions
     showSupersetOptions?: boolean;
     onToggleSuperset?: (id1: string, id2: string) => void;
+    availablePlates?: number[];
 }
 
 export function ActiveWorkoutOverlay({
@@ -74,6 +75,7 @@ export function ActiveWorkoutOverlay({
     onOpenSettings,
     showSupersetOptions,
     onToggleSuperset,
+    availablePlates,
 }: ActiveWorkoutOverlayProps) {
     const [isExpanded, setIsExpanded] = useState(true);
     const [draggedExerciseIndex, setDraggedExerciseIndex] = useState<number | null>(null);
@@ -235,6 +237,7 @@ export function ActiveWorkoutOverlay({
                             showRPE={showRPE}
                             show1RM={show1RM}
                             showPlateCalculator={showPlateCalculator}
+                            availablePlates={availablePlates}
                             allExercises={allExercises}
                         />
 

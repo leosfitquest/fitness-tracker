@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { calculatePlates } from '../utils/math';
 
 interface SetEntryRowProps {
   setNumber: number;
@@ -20,6 +21,7 @@ interface SetEntryRowProps {
   showRPE?: boolean;
   show1RM?: boolean;
   showPlateCalculator?: boolean;
+  availablePlates?: number[];
 }
 
 export function SetEntryRow({
@@ -41,6 +43,7 @@ export function SetEntryRow({
   showRPE = false,
   show1RM = false,
   showPlateCalculator = false,
+  availablePlates,
 }: SetEntryRowProps) {
   const [isFocused, setIsFocused] = useState(false);
   const [showPlates, setShowPlates] = useState(false);
@@ -59,16 +62,16 @@ export function SetEntryRow({
   // 1RM Calculation with RPE
   const calculate1RM = (w: number, r: number, rpeValue?: number): number => {
     if (r === 1 && (!rpeValue || rpeValue === 10)) return w;
-    
+
     const repPercentages: Record<number, number> = {
-      1: 1.00,   2: 0.97,   3: 0.94,   4: 0.92,   5: 0.89,
-      6: 0.86,   7: 0.83,   8: 0.81,   9: 0.78,  10: 0.75,
-      11: 0.73, 12: 0.71,  13: 0.70,  14: 0.68,  15: 0.67,
-      16: 0.65, 17: 0.64,  18: 0.63,  19: 0.61,  20: 0.60,
-      21: 0.59, 22: 0.58,  23: 0.57,  24: 0.56,  25: 0.55,
-      26: 0.54, 27: 0.53,  28: 0.52,  29: 0.51,  30: 0.50,
+      1: 1.00, 2: 0.97, 3: 0.94, 4: 0.92, 5: 0.89,
+      6: 0.86, 7: 0.83, 8: 0.81, 9: 0.78, 10: 0.75,
+      11: 0.73, 12: 0.71, 13: 0.70, 14: 0.68, 15: 0.67,
+      16: 0.65, 17: 0.64, 18: 0.63, 19: 0.61, 20: 0.60,
+      21: 0.59, 22: 0.58, 23: 0.57, 24: 0.56, 25: 0.55,
+      26: 0.54, 27: 0.53, 28: 0.52, 29: 0.51, 30: 0.50,
     };
-    
+
     const getRepsInReserve = (rpeVal: number): number => {
       if (rpeVal >= 10) return 0;
       if (rpeVal >= 9.5) return 0.5;
@@ -83,13 +86,13 @@ export function SetEntryRow({
       if (rpeVal >= 5) return 5;
       return 6;
     };
-    
+
     let adjustedReps = r;
     if (rpeValue && rpeValue < 10) {
       const rir = getRepsInReserve(rpeValue);
       adjustedReps = Math.round(r + rir);
     }
-    
+
     const percentage = repPercentages[adjustedReps] || (0.50 - (adjustedReps - 30) * 0.01);
     return Math.round(w / percentage);
   };
@@ -97,60 +100,36 @@ export function SetEntryRow({
   const estimated1RM = weight && reps ? calculate1RM(weight, reps, rpe) : null;
 
   // Plate Calculator
-  const calculatePlates = (totalWeight: number): string => {
-    const barWeight = 20;
-    const weightPerSide = (totalWeight - barWeight) / 2;
-    if (weightPerSide <= 0) return 'Bar only (20kg)';
-
-    const plates = [25, 20, 15, 10, 5, 2.5, 1.25];
-    let remaining = weightPerSide;
-    const result: string[] = [];
-
-    for (const plate of plates) {
-      const count = Math.floor(remaining / plate);
-      if (count > 0) {
-        result.push(`${plate}kg × ${count}`);
-        remaining -= plate * count;
-      }
-    }
-
-    if (remaining > 0.1) {
-      result.push(`${remaining.toFixed(2)}kg missing`);
-    }
-
-    return result.length > 0 ? result.join(' + ') : 'Bar only';
-  };
+  // Plate Calculator moved to utils/math.ts
 
   return (
     <div
-      className={`rounded-lg border transition-all ${
-        completed
-          ? 'bg-emerald-950/20 border-emerald-500/50'
-          : isFocused
+      className={`rounded-lg border transition-all ${completed
+        ? 'bg-emerald-950/20 border-emerald-500/50'
+        : isFocused
           ? 'bg-slate-800 border-emerald-500'
           : 'bg-slate-900 border-slate-700'
-      }`}
+        }`}
     >
       {/* Main Row */}
-      <div 
-        className="grid gap-2 p-2" 
+      <div
+        className="grid gap-2 p-2"
         style={{ gridTemplateColumns: showRPE ? '40px 1fr 1fr 50px 40px' : '40px 1fr 1fr 40px' }}
       >
         {/* Set Number mit PR Badge */}
         <div className="flex flex-col items-center justify-center">
           <div className="text-center font-bold text-slate-400">{setNumber}</div>
           {isPR && completed && (
-            <div 
-              className={`text-[10px] font-bold px-1 rounded mt-0.5 ${
-                prType === 'both' ? 'bg-yellow-500 text-black' :
+            <div
+              className={`text-[10px] font-bold px-1 rounded mt-0.5 ${prType === 'both' ? 'bg-yellow-500 text-black' :
                 prType === 'weight' ? 'bg-blue-500 text-white' :
-                prType === 'reps' ? 'bg-green-500 text-white' :
-                'bg-slate-600 text-white'
-              }`}
+                  prType === 'reps' ? 'bg-green-500 text-white' :
+                    'bg-slate-600 text-white'
+                }`}
             >
-              {prType === 'both' ? '🔥PR' : 
-               prType === 'weight' ? '💪' : 
-               prType === 'reps' ? '🔁' : 'PR'}
+              {prType === 'both' ? '🔥PR' :
+                prType === 'weight' ? '💪' :
+                  prType === 'reps' ? '🔁' : 'PR'}
             </div>
           )}
         </div>
@@ -186,11 +165,10 @@ export function SetEntryRow({
         {showRPE && (
           <button
             onClick={() => setShowRPEPicker(!showRPEPicker)}
-            className={`px-2 py-1.5 text-xs font-bold rounded transition-all ${
-              rpe
-                ? 'bg-emerald-500 text-black'
-                : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
-            }`}
+            className={`px-2 py-1.5 text-xs font-bold rounded transition-all ${rpe
+              ? 'bg-emerald-500 text-black'
+              : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+              }`}
           >
             {rpe ? `@${rpe}` : 'RPE'}
           </button>
@@ -223,7 +201,7 @@ export function SetEntryRow({
                 Clear
               </button>
             </div>
-            
+
             {/* RPE Grid mit 0.5 Schritten */}
             <div className="grid grid-cols-5 gap-1.5">
               {[5, 5.5, 6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10].map((rpeValue) => (
@@ -233,17 +211,16 @@ export function SetEntryRow({
                     onRPEChange(rpeValue);
                     setShowRPEPicker(false);
                   }}
-                  className={`py-2.5 text-sm font-bold rounded-lg transition-all ${
-                    rpe === rpeValue
-                      ? 'bg-emerald-500 text-black shadow-lg scale-105'
-                      : 'bg-slate-700 text-slate-300 hover:bg-slate-600 hover:scale-105'
-                  }`}
+                  className={`py-2.5 text-sm font-bold rounded-lg transition-all ${rpe === rpeValue
+                    ? 'bg-emerald-500 text-black shadow-lg scale-105'
+                    : 'bg-slate-700 text-slate-300 hover:bg-slate-600 hover:scale-105'
+                    }`}
                 >
                   {rpeValue}
                 </button>
               ))}
             </div>
-            
+
             {/* RIR Indicator */}
             <div className="mt-3 text-xs text-center text-slate-400 bg-slate-900 rounded py-2">
               {rpe && rpe < 10 ? (
@@ -282,7 +259,7 @@ export function SetEntryRow({
             className="text-xs text-emerald-400 hover:text-emerald-300 flex items-center gap-1"
           >
             <span>{showPlates ? '▼' : '▶'}</span>
-            <span>Plates: {calculatePlates(weight)}</span>
+            <span>Plates: {calculatePlates(weight, availablePlates)}</span>
           </button>
         </div>
       )}

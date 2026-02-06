@@ -186,6 +186,7 @@ function App() {
   const [showRPE, setShowRPE] = useState(false);
   const [show1RM, setShow1RM] = useState(false);
   const [showPlateCalculator, setShowPlateCalculator] = useState(false);
+  const [availablePlates, setAvailablePlates] = useState<number[]>([25, 20, 15, 10, 5, 2.5, 1.25]);
   const [showAdvancedFeatures, setShowAdvancedFeatures] = useState(false);
 
   // Summary State
@@ -745,6 +746,7 @@ function App() {
             showRPE={showRPE}
             show1RM={show1RM}
             showPlateCalculator={showPlateCalculator}
+            availablePlates={availablePlates}
           />
         )}
 
@@ -836,6 +838,33 @@ function App() {
                       <div className="flex justify-between"><span className="font-medium">Show RPE</span><input type="checkbox" checked={showRPE} onChange={(e) => setShowRPE(e.target.checked)} className="accent-emerald-500" /></div>
                       <div className="flex justify-between"><span className="font-medium">Show 1RM</span><input type="checkbox" checked={show1RM} onChange={(e) => setShow1RM(e.target.checked)} className="accent-emerald-500" /></div>
                       <div className="flex justify-between"><span className="font-medium">Show Plate Calc</span><input type="checkbox" checked={showPlateCalculator} onChange={(e) => setShowPlateCalculator(e.target.checked)} className="accent-emerald-500" /></div>
+
+                      {showPlateCalculator && (
+                        <div className="pt-2 border-t border-slate-700">
+                          <label className="text-xs font-bold text-slate-400 mb-2 block">Available Plates</label>
+                          <div className="grid grid-cols-4 gap-2">
+                            {[25, 20, 15, 10, 5, 2.5, 1.25].map(plate => (
+                              <button
+                                key={plate}
+                                onClick={() => {
+                                  setAvailablePlates(prev =>
+                                    prev.includes(plate)
+                                      ? prev.filter(p => p !== plate)
+                                      : [...prev, plate]
+                                  );
+                                }}
+                                className={`px-1 py-1 text-xs rounded border ${availablePlates.includes(plate)
+                                  ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50'
+                                  : 'bg-slate-800 text-slate-500 border-slate-700'
+                                  }`}
+                              >
+                                {plate}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
                       <div className="flex justify-between"><span className="font-medium">Superset Mode</span><input type="checkbox" checked={showSupersetOptions} onChange={(e) => setShowSupersetOptions(e.target.checked)} className="accent-emerald-500" /></div>
                       <ThemeToggle />
                     </div>
