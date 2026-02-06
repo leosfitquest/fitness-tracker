@@ -204,6 +204,26 @@ export async function searchUsers(query: string): Promise<import('../types.ts').
   return data || [];
 }
 
+export async function uploadAvatar(userId: string, file: File): Promise<string> {
+  const fileExt = file.name.split('.').pop();
+  const fileName = `${userId}-${Math.random()}.${fileExt}`;
+  const filePath = `${fileName}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from('avatars')
+    .upload(filePath, file);
+
+  if (uploadError) {
+    throw uploadError;
+  }
+
+  const { data } = supabase.storage
+    .from('avatars')
+    .getPublicUrl(filePath);
+
+  return data.publicUrl;
+}
+
 // --- Following ---
 
 export async function followUser(followerId: string, followingId: string): Promise<void> {
