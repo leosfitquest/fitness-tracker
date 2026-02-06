@@ -39,6 +39,7 @@ interface ActiveWorkoutOverlayProps {
 
     // UI Actions
     onAddExercise: () => void;
+    onOpenSettings: () => void;
 }
 
 export function ActiveWorkoutOverlay({
@@ -65,7 +66,8 @@ export function ActiveWorkoutOverlay({
     isDeload,
     allExercises,
     historicalPRData,
-    onAddExercise
+    onAddExercise,
+    onOpenSettings
 }: ActiveWorkoutOverlayProps) {
     const [isExpanded, setIsExpanded] = useState(true);
     const [draggedExerciseIndex, setDraggedExerciseIndex] = useState<number | null>(null);
@@ -116,12 +118,22 @@ export function ActiveWorkoutOverlay({
 
             {/* Header Bar */}
             <div className="sticky top-0 bg-background/95 border-b border-white/5 px-4 py-3 flex items-center justify-between z-10 backdrop-blur-md">
-                <button
-                    onClick={() => setIsExpanded(false)}
-                    className="p-2 text-slate-400 hover:text-white"
-                >
-                    ▼ Minimize
-                </button>
+                <div className="flex gap-2">
+                    <button
+                        onClick={() => setIsExpanded(false)}
+                        className="p-2 text-slate-400 hover:text-white"
+                        title="Minimize"
+                    >
+                        ▼
+                    </button>
+                    <button
+                        onClick={onOpenSettings}
+                        className="p-2 text-slate-400 hover:text-white"
+                        title="Settings"
+                    >
+                        ⚙️
+                    </button>
+                </div>
 
                 <div className="font-mono font-bold text-emerald-400 text-lg">
                     {workoutStarted ? formatTime(workoutElapsedSeconds) : "00:00"}

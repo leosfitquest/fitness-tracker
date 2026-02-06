@@ -728,6 +728,7 @@ function App() {
             onSetWorkoutStartTime={setWorkoutStartTime}
             onCompleteWorkout={handleCompleteWorkoutSession}
             onDiscardWorkout={() => setShowDiscardConfirm(true)}
+            onOpenSettings={() => setShowWorkoutSettings(true)}
 
             onSetChange={(_, sets) => setActiveSets(sets)}
             onRemoveExercise={removeExercise}
