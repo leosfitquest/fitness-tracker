@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { updateProfile } from '../lib/database';
+import { useToast } from './Toast';
 
 interface OnboardingFlowProps {
   userId: string;
@@ -11,6 +12,7 @@ type OnboardingStep = 'body' | 'preferences' | 'goals';
 export function OnboardingFlow({ userId, onComplete }: OnboardingFlowProps) {
   const [step, setStep] = useState<OnboardingStep>('body');
   const [saving, setSaving] = useState(false);
+  const { showToast } = useToast();
 
   // Body stats
   const [bodyweight, setBodyweight] = useState<string>('');
@@ -21,7 +23,19 @@ export function OnboardingFlow({ userId, onComplete }: OnboardingFlowProps) {
   // Preferences
   const [unitSystem, setUnitSystem] = useState<string>('metric');
   const [trainingExperience, setTrainingExperience] = useState<string>('beginner');
-  const [trainingStyle, setTrainingStyle] = useState<string>('general');
+  const [trainingStyles, setTrainingStyles] = useState<string[]>(['general']);
+
+  const toggleTrainingStyle = (value: string) => {
+    setTrainingStyles(prev => {
+      if (prev.includes(value)) {
+        const next = prev.filter(v => v !== value);
+        return next.length === 0 ? ['general'] : next;
+      }
+      // Remove 'general' when picking a specific style
+      const next = value === 'general' ? ['general'] : [...prev.filter(v => v !== 'general'), value];
+      return next;
+    });
+  };
 
   // Goals
   const [fitnessGoals, setFitnessGoals] = useState<string>('general');
@@ -37,7 +51,7 @@ export function OnboardingFlow({ userId, onComplete }: OnboardingFlowProps) {
         date_of_birth: dob || undefined,
         unit_system: unitSystem as any,
         training_experience: trainingExperience as any,
-        training_style: trainingStyle as any,
+        training_style: trainingStyles.join(','),
         fitness_goals: fitnessGoals as any,
         workout_frequency: workoutFrequency,
         onboarding_completed: true,
@@ -45,7 +59,7 @@ export function OnboardingFlow({ userId, onComplete }: OnboardingFlowProps) {
       onComplete();
     } catch (err) {
       console.error('Error saving profile:', err);
-      alert('Error saving profile. Please try again.');
+      showToast('Error saving profile. Please try again.', 'error');
     } finally {
       setSaving(false);
     }
@@ -220,28 +234,45 @@ export function OnboardingFlow({ userId, onComplete }: OnboardingFlowProps) {
               </div>
 
               <div>
-                <label className="text-xs text-slate-400 font-medium uppercase tracking-wider mb-2 block">Training Style</label>
+                <label className="text-xs text-slate-400 font-medium uppercase tracking-wider mb-2 block">
+                  Training Style
+                  <span className="text-slate-500 font-normal normal-case tracking-normal ml-1">(select all that apply)</span>
+                </label>
                 <div className="grid grid-cols-2 gap-2">
                   {[
                     { value: 'powerlifting', label: '🏋️ Powerlifting' },
                     { value: 'bodybuilding', label: '💪 Bodybuilding' },
                     { value: 'crossfit', label: '🔥 CrossFit' },
                     { value: 'calisthenics', label: '🤸 Calisthenics' },
+                    { value: 'olympic', label: '🥇 Olympic Lifting' },
                     { value: 'general', label: '🎯 General Fitness' },
-                  ].map(option => (
-                    <button
-                      key={option.value}
-                      onClick={() => setTrainingStyle(option.value)}
-                      className={`p-3 rounded-xl border text-sm font-medium transition-all ${
-                        trainingStyle === option.value
-                          ? 'border-emerald-500 bg-emerald-500/10 text-emerald-400'
-                          : 'border-slate-700 bg-slate-800 text-slate-300 hover:border-slate-600'
-                      }`}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
+                  ].map(option => {
+                    const isSelected = trainingStyles.includes(option.value);
+                    return (
+                      <button
+                        key={option.value}
+                        onClick={() => toggleTrainingStyle(option.value)}
+                        className={`p-3 rounded-xl border text-sm font-medium transition-all relative ${
+                          isSelected
+                            ? 'border-emerald-500 bg-emerald-500/10 text-emerald-400'
+                            : 'border-slate-700 bg-slate-800 text-slate-300 hover:border-slate-600'
+                        }`}
+                      >
+                        {isSelected && (
+                          <span className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-emerald-500 flex items-center justify-center">
+                            <span className="text-[10px] text-black font-bold">✓</span>
+                          </span>
+                        )}
+                        {option.label}
+                      </button>
+                    );
+                  })}
                 </div>
+                {trainingStyles.length > 1 && (
+                  <p className="text-emerald-400/60 text-xs mt-2">
+                    Selected: {trainingStyles.map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' + ')}
+                  </p>
+                )}
               </div>
             </>
           )}

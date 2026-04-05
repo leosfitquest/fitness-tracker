@@ -23,6 +23,7 @@ import { UserSearch } from "./components/UserSearch";
 import { UsernameModal } from "./components/UsernameModal";
 import { NotificationsPage } from "./components/NotificationsPage";
 import { OnboardingFlow } from "./components/OnboardingFlow";
+import { useToast } from "./components/Toast";
 
 // Hooks & Utils
 import { useWorkoutSession } from './hooks/useWorkoutSession';
@@ -94,6 +95,7 @@ function App() {
   const [authLoading, setAuthLoading] = useState(true);
 
   // Data State
+  const { showToast } = useToast();
   const [isLoadingData, setIsLoadingData] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [workouts, setWorkouts] = useState<Workout[]>([]);
@@ -459,7 +461,7 @@ function App() {
 
     } catch (err) {
       console.error("Error creating workout from template:", err);
-      alert("Error creating workout from template");
+      showToast("Error creating workout from template", "error");
     }
   };
 
@@ -789,7 +791,7 @@ function App() {
                   <button
                     onClick={async () => {
                       await shareSessionToFeed(selectedSession.id);
-                      alert("Shared to Feed!");
+                      showToast("Shared to Feed!", "success");
                     }}
                     className="w-full py-3 mb-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-500 transition-colors"
                   >

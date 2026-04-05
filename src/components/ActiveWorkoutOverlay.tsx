@@ -4,6 +4,7 @@ import { formatTime } from "../utils/math";
 import { checkSetPR } from "../utils/PRTracker";
 import type { SetPR } from "../utils/PRTracker";
 import type { Workout, WorkoutExercise, ActiveSet, Exercise } from "../types";
+import { useToast } from './Toast';
 
 interface ActiveWorkoutOverlayProps {
     workout: Workout;
@@ -79,6 +80,7 @@ export function ActiveWorkoutOverlay({
 }: ActiveWorkoutOverlayProps) {
     const [isExpanded, setIsExpanded] = useState(true);
     const [draggedExerciseIndex, setDraggedExerciseIndex] = useState<number | null>(null);
+    const { showToast } = useToast();
 
     // Auto-collapse if user navigates away? No, we want persistence.
     // But we default to expanded when a workout starts.
@@ -216,7 +218,7 @@ export function ActiveWorkoutOverlay({
                                         const pr = checkSetPR(selectedExerciseId, s.setNumber, s.weight, s.reps, historicalPRData);
                                         if (pr.isPR) {
                                             newSets[index] = { ...newSets[index], isPR: true, prType: pr.improvement || 'both' };
-                                            alert(`🔥 NEW PR! Set ${s.setNumber}: ${s.weight}kg × ${s.reps} reps`);
+                                            showToast(`🔥 NEW PR! Set ${s.setNumber}: ${s.weight}kg × ${s.reps} reps`, 'success');
                                         }
                                     }
                                 }

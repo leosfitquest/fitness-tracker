@@ -10,6 +10,7 @@ import { ExerciseRankBadge } from './ExerciseRankBadge';
 import { getExerciseRank, type ExerciseRank } from '../utils/strengthStandards';
 import { calculateHunterTier, checkBadgeEligibility, BADGE_DEFINITIONS, type HunterTierName } from '../utils/hunterTier';
 import { getRank, getNextRank } from '../utils/gamification';
+import { useToast } from './Toast';
 
 interface ProfilePageProps {
     userId?: string;
@@ -26,6 +27,7 @@ export function ProfilePage({ userId, onSelectUser }: ProfilePageProps) {
     const [isFollowing, setIsFollowing] = useState(false);
     const [uploadingAvatar, setUploadingAvatar] = useState(false);
     const [activeTab, setActiveTab] = useState<'overview' | 'workouts' | 'ranks'>('overview');
+    const { showToast } = useToast();
 
     // Edit Form State
     const [editName, setEditName] = useState('');
@@ -101,7 +103,7 @@ export function ProfilePage({ userId, onSelectUser }: ProfilePageProps) {
             setProfile(updated);
             setIsEditing(false);
         } catch (e) {
-            alert('Error updating profile');
+            showToast('Error updating profile', 'error');
         }
     };
 
@@ -119,7 +121,7 @@ export function ProfilePage({ userId, onSelectUser }: ProfilePageProps) {
         } catch (e) {
             console.error(e);
             const timerMsg = e instanceof Error ? e.message : JSON.stringify(e);
-            alert(`Error following user: ${timerMsg}`);
+            showToast(`Error following user: ${timerMsg}`, 'error');
         }
     };
 
@@ -133,7 +135,7 @@ export function ProfilePage({ userId, onSelectUser }: ProfilePageProps) {
             setProfile(updated);
         } catch (error) {
             console.error('Error uploading avatar:', error);
-            alert('Error uploading avatar. Make sure the file is an image.');
+            showToast('Error uploading avatar. Make sure the file is an image.', 'error');
         } finally {
             setUploadingAvatar(false);
         }

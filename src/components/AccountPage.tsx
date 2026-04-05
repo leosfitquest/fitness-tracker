@@ -1,6 +1,7 @@
 import type { User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { useTheme } from '../contexts/ThemeContext';
+import { useToast } from './Toast';
 
 interface AccountPageProps {
   user: User;
@@ -8,6 +9,7 @@ interface AccountPageProps {
 
 export function AccountPage({ user }: AccountPageProps) {
   const { theme, setTheme } = useTheme();
+  const { showToast } = useToast();
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -43,7 +45,7 @@ export function AccountPage({ user }: AccountPageProps) {
               <button
                 onClick={() => {
                   navigator.clipboard.writeText(user.id);
-                  alert('User ID copied!');
+                  showToast('User ID copied!', 'success');
                 }}
                 className="ml-2 px-2 py-1 bg-emerald-500 text-black rounded text-xs font-bold hover:bg-emerald-600 transition-all"
               >

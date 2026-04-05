@@ -4,12 +4,15 @@ import './index.css'
 import App from './App'
 import { ThemeProvider } from './contexts/ThemeContext'
 import { ErrorBoundary } from './components/ErrorBoundary'
+import { ToastProvider } from './components/Toast'
 
 createRoot(document.getElementById('root') as HTMLElement).render(
   <StrictMode>
     <ErrorBoundary>
       <ThemeProvider>
-        <App />
+        <ToastProvider>
+          <App />
+        </ToastProvider>
       </ThemeProvider>
     </ErrorBoundary>
   </StrictMode>,

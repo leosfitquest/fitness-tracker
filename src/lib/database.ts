@@ -232,9 +232,18 @@ export async function getProfile(userId: string): Promise<import('../types.ts').
 }
 
 export async function updateProfile(userId: string, updates: Partial<import('../types.ts').UserProfile>): Promise<import('../types.ts').UserProfile> {
+  // Strip undefined values — Supabase interprets them as null which can violate constraints
+  const cleanUpdates: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  for (const [key, value] of Object.entries(updates)) {
+    if (value !== undefined) {
+      cleanUpdates[key] = value;
+    }
+  }
+
   const { data, error } = await supabase
     .from('user_profiles')
-    .upsert({ id: userId, ...updates, updated_at: new Date().toISOString() })
+    .update(cleanUpdates)
+    .eq('id', userId)
     .select()
     .single();
 

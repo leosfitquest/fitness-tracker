@@ -126,7 +126,7 @@ export type UserProfile = {
     date_of_birth?: string;
     unit_system?: 'metric' | 'imperial';
     training_experience?: 'beginner' | 'intermediate' | 'advanced' | 'elite';
-    training_style?: 'powerlifting' | 'bodybuilding' | 'crossfit' | 'calisthenics' | 'general';
+    training_style?: string; // Comma-separated, e.g. "powerlifting,bodybuilding"
     fitness_goals?: 'strength' | 'hypertrophy' | 'endurance' | 'weight_loss' | 'general';
     workout_frequency?: number;
     onboarding_completed?: boolean;
