@@ -32,7 +32,6 @@ export function ProfilePage({ userId, onSelectUser }: ProfilePageProps) {
     // Edit Form State
     const [editName, setEditName] = useState('');
     const [editBio, setEditBio] = useState('');
-    const [editWebsite, setEditWebsite] = useState('');
     const [editIsPublic, setEditIsPublic] = useState(true);
     const [editBodyweight, setEditBodyweight] = useState('');
     const [editGender, setEditGender] = useState('');
@@ -61,7 +60,6 @@ export function ProfilePage({ userId, onSelectUser }: ProfilePageProps) {
                 setProfile(p);
                 setEditName(p.full_name || '');
                 setEditBio(p.bio || '');
-                setEditWebsite(p.website || '');
                 setEditIsPublic(p.is_public ?? true);
                 setEditBodyweight(String(p.bodyweight || ''));
                 setEditGender(p.gender || '');
@@ -95,7 +93,6 @@ export function ProfilePage({ userId, onSelectUser }: ProfilePageProps) {
             const updated = await updateProfile(profile.id, {
                 full_name: editName,
                 bio: editBio,
-                website: editWebsite,
                 is_public: editIsPublic,
                 bodyweight: editBodyweight ? parseFloat(editBodyweight) : undefined,
                 gender: editGender as any || undefined,
@@ -239,7 +236,6 @@ export function ProfilePage({ userId, onSelectUser }: ProfilePageProps) {
                                 <div className="space-y-3 max-w-sm">
                                     <input value={editName} onChange={e => setEditName(e.target.value)} placeholder="Full Name" className="w-full p-2 rounded bg-background border border-border" />
                                     <textarea value={editBio} onChange={e => setEditBio(e.target.value)} placeholder="Bio" className="w-full p-2 rounded bg-background border border-border" rows={2} />
-                                    <input value={editWebsite} onChange={e => setEditWebsite(e.target.value)} placeholder="Website" className="w-full p-2 rounded bg-background border border-border" />
                                     <div className="grid grid-cols-2 gap-2">
                                         <div>
                                             <label className="text-xs text-slate-400 block mb-1">Bodyweight (kg)</label>

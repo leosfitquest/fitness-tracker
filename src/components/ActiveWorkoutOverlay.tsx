@@ -190,7 +190,7 @@ export function ActiveWorkoutOverlay({
                         </button>
 
                         <ActiveWorkoutCard
-                            exerciseId={selectedExerciseId}
+                            exerciseId={workoutExercises.find(e => e.id === selectedExerciseId)?.exerciseId || ""}
                             exerciseName={workoutExercises.find(e => e.id === selectedExerciseId)?.name || ""}
                             muscleGroup={workoutExercises.find(e => e.id === selectedExerciseId)?.muscleGroup || ""}
                             sets={activeSets}
