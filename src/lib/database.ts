@@ -1,5 +1,6 @@
 import { supabase } from './supabase'
 import type { Workout, WorkoutSessionLog, ExerciseRecord } from '../types.ts';
+import { calculateSessionXP, calculateNewStreak, calculateLevel } from '../utils/gamification';
 
 // ============= WORKOUTS =============
 
@@ -93,6 +94,54 @@ export async function saveSessionLog(log: WorkoutSessionLog, userId: string): Pr
     .single()
 
   if (error) throw error
+
+  // --- Gamification Logic ---
+  try {
+    const { totalXP } = calculateSessionXP(log);
+    const profile = await getProfile(userId);
+    if (!profile) throw new Error('Profile not found');
+
+    // Streak Logic
+    let newStreak = calculateNewStreak(
+      profile.current_streak || 0,
+      profile.last_workout_date,
+      new Date(log.endedAt)
+    );
+
+    // Freeze Consumption Logic
+    let streakFreezes = profile.streak_freezes !== undefined ? profile.streak_freezes : 2;
+
+    const last = profile.last_workout_date ? new Date(profile.last_workout_date) : null;
+    if (last) {
+      const current = new Date(log.endedAt);
+      const diffTime = Math.abs(current.getTime() - last.getTime());
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      if (newStreak === 1 && (profile.current_streak || 0) > 0 && diffDays > 7) {
+        if (streakFreezes > 0) {
+          streakFreezes--;
+          newStreak = (profile.current_streak || 0) + 1;
+        }
+      }
+    }
+
+    const newTotalXP = (profile.xp || 0) + totalXP;
+    const newLevel = calculateLevel(newTotalXP);
+    const longestStreak = Math.max(profile.longest_streak || 0, newStreak);
+
+    await updateProfile(userId, {
+      xp: newTotalXP,
+      level: newLevel,
+      current_streak: newStreak,
+      longest_streak: longestStreak,
+      last_workout_date: log.endedAt,
+      streak_freezes: streakFreezes
+    });
+
+  } catch (err) {
+    console.error("Failed to update gamification stats:", err);
+  }
+
   return data
 }
 

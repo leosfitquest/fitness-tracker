@@ -22,6 +22,7 @@ import { ProfilePage } from "./components/ProfilePage";
 import { UserSearch } from "./components/UserSearch";
 import { UsernameModal } from "./components/UsernameModal";
 import { NotificationsPage } from "./components/NotificationsPage";
+import { OnboardingFlow } from "./components/OnboardingFlow";
 
 // Hooks & Utils
 import { useWorkoutSession } from './hooks/useWorkoutSession';
@@ -117,7 +118,8 @@ function App() {
 
   // Onboarding
   const [showUsernameModal, setShowUsernameModal] = useState(false);
-  const [viewingUserId, setViewingUserId] = useState<string | undefined>(undefined); // For ProfilePage navigation
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [viewingUserId, setViewingUserId] = useState<string | undefined>(undefined);
 
   // Superset UI State (local only)
 
@@ -228,6 +230,8 @@ function App() {
     const p = await getProfile(user.id);
     if (!p || !p.username) {
       setShowUsernameModal(true);
+    } else if (!p.onboarding_completed) {
+      setShowOnboarding(true);
     }
   };
 
@@ -269,7 +273,7 @@ function App() {
 
       } catch (err: any) {
         console.error('Error loading data:', err);
-        setError('Fehler beim Laden der Daten.');
+        setError('Error loading data. Please try again.');
       } finally {
         setIsLoadingData(false);
       }
@@ -355,8 +359,6 @@ function App() {
   const handleStartWorkout = (id: string) => {
     const workout = workouts.find(w => w.id === id);
     if (!workout) return;
-
-    setSessionPRs([]);
 
     setSessionPRs([]);
 
@@ -711,9 +713,16 @@ function App() {
 
         {/* USERNAME MODAL */}
         {showUsernameModal && user && (
-          <UsernameModal userId={user.id} onComplete={() => setShowUsernameModal(false)} />
+          <UsernameModal userId={user.id} onComplete={() => {
+            setShowUsernameModal(false);
+            setShowOnboarding(true); // After username, start onboarding
+          }} />
         )}
 
+        {/* ONBOARDING FLOW */}
+        {showOnboarding && user && (
+          <OnboardingFlow userId={user.id} onComplete={() => setShowOnboarding(false)} />
+        )}
 
         {/* ACTIVE WORKOUT OVERLAY */}
         {mode === "active" && selectedWorkoutId && (

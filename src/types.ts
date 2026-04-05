@@ -116,9 +116,40 @@ export type UserProfile = {
     full_name?: string;
     avatar_url?: string;
     bio?: string;
-    website?: string; // Not in SQL, but good to have if we expand
-    is_public: boolean; // Added from SQL
+    website?: string;
+    is_public: boolean;
     created_at: string;
+    // Personalization
+    bodyweight?: number;
+    height?: number;
+    gender?: 'male' | 'female' | 'prefer_not_to_say';
+    date_of_birth?: string;
+    unit_system?: 'metric' | 'imperial';
+    training_experience?: 'beginner' | 'intermediate' | 'advanced' | 'elite';
+    training_style?: 'powerlifting' | 'bodybuilding' | 'crossfit' | 'calisthenics' | 'general';
+    fitness_goals?: 'strength' | 'hypertrophy' | 'endurance' | 'weight_loss' | 'general';
+    workout_frequency?: number;
+    onboarding_completed?: boolean;
+    // Gamification
+    xp?: number;
+    level?: number;
+    current_streak?: number;
+    longest_streak?: number;
+    last_workout_date?: string | null;
+    league_tier?: string;
+    streak_freezes?: number;
+    max_xp_per_day?: number;
+    // Hunter Tier
+    hunter_tier?: string;
+    badges?: string[]; // Array of badge IDs
+};
+
+export type ExerciseRankInfo = {
+    exerciseId: string;
+    exerciseName: string;
+    rank: 'Bronze' | 'Silver' | 'Gold' | 'Platinum' | 'Ember' | 'Diamond';
+    estimated1RM: number;
+    bwMultiplier: number;
 };
 
 export type Follow = {
