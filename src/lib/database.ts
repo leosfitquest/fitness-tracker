@@ -232,23 +232,40 @@ export async function getProfile(userId: string): Promise<import('../types.ts').
 }
 
 export async function updateProfile(userId: string, updates: Partial<import('../types.ts').UserProfile>): Promise<import('../types.ts').UserProfile> {
-  // Strip undefined values — Supabase interprets them as null which can violate constraints
-  const cleanUpdates: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  // Strip undefined values — Supabase sends them as null which can violate NOT NULL constraints
+  const cleanUpdates: Record<string, unknown> = {
+    updated_at: new Date().toISOString(),
+  };
   for (const [key, value] of Object.entries(updates)) {
-    if (value !== undefined) {
+    if (value !== undefined && key !== 'id') {
       cleanUpdates[key] = value;
     }
   }
 
-  const { data, error } = await supabase
+  // Try UPDATE first (works for existing profiles)
+  const { data: updateData, error: updateError } = await supabase
     .from('user_profiles')
     .update(cleanUpdates)
     .eq('id', userId)
     .select()
     .single();
 
-  if (error) throw error;
-  return data;
+  if (updateData) return updateData;
+
+  // If update found no row (PGRST116 = no rows), INSERT instead (new user)
+  if (updateError?.code === 'PGRST116') {
+    const { data: insertData, error: insertError } = await supabase
+      .from('user_profiles')
+      .insert({ id: userId, ...cleanUpdates })
+      .select()
+      .single();
+
+    if (insertError) throw insertError;
+    return insertData;
+  }
+
+  if (updateError) throw updateError;
+  throw new Error('Unexpected profile update state');
 }
 
 export async function searchUsers(query: string): Promise<import('../types.ts').UserProfile[]> {
