@@ -5,6 +5,7 @@ import { checkSetPR } from "../utils/PRTracker";
 import type { SetPR } from "../utils/PRTracker";
 import type { Workout, WorkoutExercise, ActiveSet, Exercise } from "../types";
 import { useToast } from './Toast';
+import { useGlobalTimer } from '../hooks/GlobalTimerContext';
 
 interface ActiveWorkoutOverlayProps {
     workout: Workout;
@@ -81,6 +82,7 @@ export function ActiveWorkoutOverlay({
     const [isExpanded, setIsExpanded] = useState(true);
     const [draggedExerciseIndex, setDraggedExerciseIndex] = useState<number | null>(null);
     const { showToast } = useToast();
+    const { startRestTimer } = useGlobalTimer();
 
     // Auto-collapse if user navigates away? No, we want persistence.
     // But we default to expanded when a workout starts.
@@ -228,7 +230,10 @@ export function ActiveWorkoutOverlay({
                                 const newSets = [...activeSets, { setNumber: activeSets.length + 1, completed: false, weight: null, reps: null, rpe: null }];
                                 onSetChange(selectedExerciseId, newSets);
                             }}
-                            onStartRest={() => { }} // TODO: Hook up rest timer
+                            onStartRest={() => {
+                                // Default rest time is 90 seconds
+                                startRestTimer(90);
+                            }}
                             onNoteChange={(_newNote) => {
                                 // We need a way to update notes in the parent state
                                 // For now, simpler implementation:

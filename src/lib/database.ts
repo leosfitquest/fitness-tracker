@@ -463,3 +463,59 @@ export async function markNotificationsRead(notificationIds: string[]): Promise<
 
   if (error) throw error;
 }
+
+// --- Custom Exercises ---
+export async function getCustomExercises(userId: string): Promise<import('../types.ts').CustomExercise[]> {
+  const { data, error } = await supabase
+    .from('custom_exercises')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
+export async function createCustomExercise(
+  exercise: Omit<import('../types.ts').CustomExercise, 'id' | 'created_at'>
+): Promise<import('../types.ts').CustomExercise> {
+  const { data, error } = await supabase
+    .from('custom_exercises')
+    .insert(exercise)
+    .select('*')
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteCustomExercise(id: string): Promise<void> {
+  const { error } = await supabase.from('custom_exercises').delete().eq('id', id);
+  if (error) throw error;
+}
+
+// --- Body Measurements ---
+export async function getBodyMeasurements(userId: string): Promise<import('../types.ts').BodyMeasurement[]> {
+  const { data, error } = await supabase
+    .from('body_measurements')
+    .select('*')
+    .eq('user_id', userId)
+    .order('date', { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
+export async function createBodyMeasurement(
+  measurement: Omit<import('../types.ts').BodyMeasurement, 'id'>
+): Promise<import('../types.ts').BodyMeasurement> {
+  const { data, error } = await supabase
+    .from('body_measurements')
+    .insert(measurement)
+    .select('*')
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteBodyMeasurement(id: string): Promise<void> {
+  const { error } = await supabase.from('body_measurements').delete().eq('id', id);
+  if (error) throw error;
+}

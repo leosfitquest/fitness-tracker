@@ -1,4 +1,4 @@
-import type { WorkoutSessionLog } from "../App";
+import type { WorkoutSessionLog } from "../types.ts";
 
 interface SessionDetailModalProps {
   session: WorkoutSessionLog | null;
@@ -37,10 +37,11 @@ export function SessionDetailModal({ session, onClose }: SessionDetailModalProps
   // 🆕 NEU: Berechne Stats für jede Übung
   const calculateExerciseStats = (exercise: any) => {
     const completedSets = exercise.sets.filter((s: any) => s.completed);
-    const totalVolume = completedSets.reduce((sum: number, set: any) => {
+    const volumeSets = completedSets.filter((s: any) => s.setType !== 'warmup');
+    const totalVolume = volumeSets.reduce((sum: number, set: any) => {
       return sum + (set.weight || 0) * (set.reps || 0);
     }, 0);
-    const maxWeight = Math.max(...completedSets.map((s: any) => s.weight || 0), 0);
+    const maxWeight = Math.max(...volumeSets.map((s: any) => s.weight || 0), 0);
 
     return {
       completedSets: completedSets.length,

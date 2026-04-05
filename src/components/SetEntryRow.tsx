@@ -22,6 +22,8 @@ interface SetEntryRowProps {
   show1RM?: boolean;
   showPlateCalculator?: boolean;
   availablePlates?: number[];
+  setType?: 'normal' | 'warmup' | 'drop' | 'failure';
+  onSetTypeChange?: (type: 'normal' | 'warmup' | 'drop' | 'failure') => void;
 }
 
 export function SetEntryRow({
@@ -44,6 +46,8 @@ export function SetEntryRow({
   show1RM = false,
   showPlateCalculator = false,
   availablePlates,
+  setType = 'normal',
+  onSetTypeChange,
 }: SetEntryRowProps) {
   const [isFocused, setIsFocused] = useState(false);
   const [showPlates, setShowPlates] = useState(false);
@@ -116,9 +120,28 @@ export function SetEntryRow({
         className="grid gap-2 p-2"
         style={{ gridTemplateColumns: showRPE ? '40px 1fr 1fr 50px 40px' : '40px 1fr 1fr 40px' }}
       >
-        {/* Set Number mit PR Badge */}
+        {/* Set Number & Type Toggle */}
         <div className="flex flex-col items-center justify-center">
-          <div className="text-center font-bold text-slate-400">{setNumber}</div>
+          <button
+            onClick={() => {
+              if (!onSetTypeChange) return;
+              const types: ('normal' | 'warmup' | 'drop' | 'failure')[] = ['normal', 'warmup', 'drop', 'failure'];
+              const nextIndex = (types.indexOf(setType) + 1) % types.length;
+              onSetTypeChange(types[nextIndex]);
+            }}
+            className={`w-7 h-7 rounded-sm flex items-center justify-center text-xs font-bold transition-all ${
+              setType === 'warmup' ? 'bg-yellow-500/20 text-yellow-500 hover:bg-yellow-500/30' :
+              setType === 'drop' ? 'bg-purple-500/20 text-purple-400 hover:bg-purple-500/30' :
+              setType === 'failure' ? 'bg-red-500/20 text-red-500 hover:bg-red-500/30' :
+              'bg-slate-800 text-slate-400 hover:bg-slate-700'
+            }`}
+          >
+            {setType === 'normal' ? setNumber :
+             setType === 'warmup' ? 'W' :
+             setType === 'drop' ? 'D' :
+             setType === 'failure' ? 'F' : setNumber}
+          </button>
+          
           {isPR && completed && (
             <div
               className={`text-[10px] font-bold px-1 rounded mt-0.5 ${prType === 'both' ? 'bg-yellow-500 text-black' :

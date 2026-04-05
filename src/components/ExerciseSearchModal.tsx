@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 // import { List as ReactWindowList } from 'react-window'; // Removed for stability check
 import type { Exercise } from '../types.ts';
 import { useExercisePreferences } from '../hooks/useExercisePreferences';
+import { CustomExerciseModal } from './CustomExerciseModal';
 
 
 
@@ -11,6 +12,7 @@ interface ExerciseSearchModalProps {
   onSelectExercise: (exerciseId: string) => void;
   allExercises: Exercise[];
   muscleGroups: readonly Exercise['muscleGroup'][];
+  onCreateCustomExercise?: (ex: { name: string; muscleGroup: string; equipment?: string }) => void;
 }
 
 export function ExerciseSearchModal({
@@ -19,9 +21,11 @@ export function ExerciseSearchModal({
   onSelectExercise,
   allExercises,
   muscleGroups,
+  onCreateCustomExercise,
 }: ExerciseSearchModalProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeFilter, setActiveFilter] = useState<'all' | 'favorites' | 'recent' | string>('all');
+  const [activeFilter, setActiveFilter] = useState<'all' | 'favorites' | 'recent' | 'custom' | string>('all');
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   const { favorites, recent, toggleFavorite, addToRecent } = useExercisePreferences();
 
@@ -39,6 +43,7 @@ export function ExerciseSearchModal({
       // 2. Category/Tab Filter
       if (activeFilter === 'favorites') return Array.isArray(favorites) && favorites.includes(ex.id);
       if (activeFilter === 'recent') return Array.isArray(recent) && recent.includes(ex.id);
+      if (activeFilter === 'custom') return ex.id.startsWith('custom-');
       if (activeFilter !== 'all' && ex.muscleGroup !== activeFilter) return false;
 
       return true;
@@ -96,6 +101,7 @@ export function ExerciseSearchModal({
           <button onClick={() => setActiveFilter('all')} className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${activeFilter === 'all' ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'}`}>All</button>
           <button onClick={() => setActiveFilter('favorites')} className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${activeFilter === 'favorites' ? 'bg-red-500 text-white' : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'}`}>❤️ Favorites</button>
           <button onClick={() => setActiveFilter('recent')} className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${activeFilter === 'recent' ? 'bg-blue-500 text-white' : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'}`}>🕒 Recent</button>
+          <button onClick={() => setActiveFilter('custom')} className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${activeFilter === 'custom' ? 'bg-purple-500 text-white' : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'}`}>✨ Custom</button>
           <div className="w-px h-6 bg-border mx-1" />
           {muscleGroups.map((group) => (
             <button
@@ -153,10 +159,29 @@ export function ExerciseSearchModal({
           )}
         </div>
 
-        <div className="text-xs text-muted-foreground mt-4 text-center">
-          {filteredExercises.length} exercise{filteredExercises.length !== 1 ? 's' : ''} found
+        <div className="flex items-center justify-between mt-4">
+          <div className="text-xs text-muted-foreground">
+            {filteredExercises.length} exercise{filteredExercises.length !== 1 ? 's' : ''} found
+          </div>
+          {onCreateCustomExercise && (
+            <button 
+              onClick={() => setShowCreateModal(true)}
+              className="text-xs font-bold text-primary hover:text-primary/80"
+            >
+              + Create Custom Exercise
+            </button>
+          )}
         </div>
       </div>
+
+      <CustomExerciseModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onSave={(data) => {
+           if (onCreateCustomExercise) onCreateCustomExercise(data);
+           setShowCreateModal(false);
+        }}
+      />
     </div>
   );
 }

@@ -47,15 +47,48 @@ export type Workout = {
     exercises: Exercise[];
 };
 
+export type SetType = 'normal' | 'warmup' | 'drop' | 'failure';
+
 export type ActiveSet = {
     setNumber: number;
     weight: number | null;
     reps: number | null;
     rpe: number | null;
     completed: boolean;
+    setType?: SetType;
     // PR flags
     isPR?: boolean;
     prType?: 'weight' | 'reps' | 'both' | 'none';
+};
+
+export type CustomExercise = {
+    id: string;
+    user_id: string;
+    name: string;
+    muscle_group: string;
+    equipment?: string;
+    instructions?: string[];
+    image_url?: string;
+    created_at?: string;
+};
+
+export type BodyMeasurement = {
+    id: string;
+    user_id: string;
+    date: string;
+    weight?: number;
+    bodyfat?: number;
+    neck?: number;
+    shoulders?: number;
+    chest?: number;
+    left_bicep?: number;
+    right_bicep?: number;
+    waist?: number;
+    hips?: number;
+    left_thigh?: number;
+    right_thigh?: number;
+    left_calf?: number;
+    right_calf?: number;
 };
 
 export type ExerciseSessionData = {

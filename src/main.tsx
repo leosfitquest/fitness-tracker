@@ -5,14 +5,17 @@ import App from './App'
 import { ThemeProvider } from './contexts/ThemeContext'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { ToastProvider } from './components/Toast'
+import { GlobalTimerProvider } from './hooks/GlobalTimerContext'
 
 createRoot(document.getElementById('root') as HTMLElement).render(
   <StrictMode>
     <ErrorBoundary>
       <ThemeProvider>
-        <ToastProvider>
-          <App />
-        </ToastProvider>
+        <GlobalTimerProvider>
+          <ToastProvider>
+            <App />
+          </ToastProvider>
+        </GlobalTimerProvider>
       </ThemeProvider>
     </ErrorBoundary>
   </StrictMode>,

@@ -15,6 +15,7 @@ import { type WorkoutTemplate } from './data/workoutTemplates';
 import { PlateCalculatorModal } from './components/PlateCalculatorModal';
 import { ThemeToggle } from './contexts/ThemeToggle';
 import { ActiveWorkoutOverlay } from "./components/ActiveWorkoutOverlay";
+import { FloatingRestTimer } from "./components/FloatingRestTimer";
 
 // Social Components
 import { FeedPage } from "./components/FeedPage";
@@ -40,7 +41,9 @@ import {
   saveWorkout,
   updateWorkout,
   shareSessionToFeed,
-  getProfile
+  getProfile,
+  getCustomExercises,
+  createCustomExercise
 } from './lib/database';
 
 // Data & Types
@@ -93,6 +96,7 @@ function App() {
   // Auth State
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [allAppExercises, setAllAppExercises] = useState<Exercise[]>(ALL_EXERCISES);
 
   // Data State
   const { showToast } = useToast();
@@ -244,11 +248,22 @@ function App() {
       setIsLoadingData(true);
       setError(null);
       try {
-        const [loadedWorkouts, loadedLogs, loadedRecords] = await Promise.all([
+        const [loadedWorkouts, loadedLogs, loadedRecords, loadedCustomExs] = await Promise.all([
           loadWorkouts(user.id),
           loadSessionLogs(user.id),
-          loadExerciseRecords(user.id)
+          loadExerciseRecords(user.id),
+          getCustomExercises(user.id)
         ]);
+
+        const customExercisesMapped: Exercise[] = loadedCustomExs.map(ex => ({
+          id: ex.id,
+          name: ex.name,
+          muscleGroup: ex.muscle_group as MuscleGroup,
+          equipment: ex.equipment ?? undefined,
+          instructions: ex.instructions ?? undefined,
+          imageUrl: ex.image_url ?? undefined,
+        }));
+        setAllAppExercises([...customExercisesMapped, ...ALL_EXERCISES]);
 
         setWorkouts(loadedWorkouts);
         // setSessionLogs(loadedLogs);
@@ -420,7 +435,7 @@ function App() {
       // Create new workout from template
       const templateExercises: WorkoutExercise[] = template.exercises
         .map(te => {
-          const exercise = ALL_EXERCISES.find(ex =>
+          const exercise = allAppExercises.find(ex =>
             ex.name.toLowerCase().includes(te.exerciseName.toLowerCase()) ||
             te.exerciseName.toLowerCase().includes(ex.name.toLowerCase())
           );
@@ -750,7 +765,7 @@ function App() {
             onSaveExercise={handleSaveExercise}
             selectedExerciseId={selectedExerciseId}
             isDeload={isDeload}
-            allExercises={ALL_EXERCISES}
+            allExercises={allAppExercises}
             historicalPRData={historicalPRData}
             onSelectExercise={setSelectedExerciseId}
             onAddExercise={() => setShowExerciseSearchModal(true)}
@@ -892,12 +907,38 @@ function App() {
 
         {
           showExerciseSearchModal && <ExerciseSearchModal isOpen={showExerciseSearchModal} onClose={() => setShowExerciseSearchModal(false)} onSelectExercise={(id) => {
-            const ex = ALL_EXERCISES.find(e => e.id === id);
+            const ex = allAppExercises.find(e => e.id === id);
             if (ex) {
               addExercisesToWorkout([{ id: ex.id, exerciseId: ex.id, name: ex.name, muscleGroup: ex.muscleGroup, imageUrl: ex.imageUrl, note: ex.note }]);
               setShowExerciseSearchModal(false);
             }
-          }} allExercises={ALL_EXERCISES} muscleGroups={Array.from(MUSCLE_GROUPS)} />
+          }} 
+          allExercises={allAppExercises} 
+          muscleGroups={Array.from(MUSCLE_GROUPS)} 
+          onCreateCustomExercise={async (data) => {
+            if (!user) return;
+            try {
+              const newEx = await createCustomExercise({
+                user_id: user.id,
+                name: data.name,
+                muscle_group: data.muscleGroup,
+                equipment: data.equipment,
+                instructions: [],
+              });
+              const mapped: Exercise = {
+                id: newEx.id,
+                name: newEx.name,
+                muscleGroup: newEx.muscle_group as MuscleGroup,
+                equipment: newEx.equipment ?? undefined,
+                instructions: newEx.instructions ?? undefined,
+              };
+              setAllAppExercises(prev => [mapped, ...prev]);
+            } catch (err) {
+              console.error(err);
+              showToast("Failed to create custom exercise", "error");
+            }
+          }}
+          />
         }
 
         {/* {showRestTimer && <RestTimer initialSeconds={customRestSeconds} onDismiss={stopRestTimer} autoStart={true} />} */}
@@ -909,6 +950,7 @@ function App() {
 
 
 
+        <FloatingRestTimer bottomOffset="80px" />
         <BottomNav
           currentPage={currentPage}
           onNavigate={(p) => {

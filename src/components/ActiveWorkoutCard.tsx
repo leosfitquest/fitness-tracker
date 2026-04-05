@@ -51,7 +51,8 @@ export function ActiveWorkoutCard({
   const [showInstructions, setShowInstructions] = useState(false);
   const [showNoteInput, setShowNoteInput] = useState(false);
 
-  const currentExercise = allExercises.find(ex => ex.id === exerciseId);
+  const currentExercise = allExercises.find(ex => ex.id === exerciseId) 
+                         || allExercises.find(ex => ex.name === exerciseName);
 
   const handleCompleteSet = (index: number) => {
     const set = sets[index];
@@ -163,6 +164,8 @@ export function ActiveWorkoutCard({
               isPR={set.isPR}
               prType={set.prType}
               previousBest={undefined}
+              setType={set.setType}
+              onSetTypeChange={(type) => onSetChange(index, 'setType', type)}
               onWeightChange={(weight) => onSetChange(index, 'weight', weight)}
               onRepsChange={(reps) => onSetChange(index, 'reps', reps)}
               onRPEChange={(rpe) => onSetChange(index, 'rpe', rpe)}
@@ -222,7 +225,7 @@ export function ActiveWorkoutCard({
             <span className="text-muted-foreground">Total Volume:</span>
             <span className="ml-2 text-primary font-bold">
               {sets.reduce((sum, set) =>
-                set.completed && set.weight && set.reps
+                set.completed && set.weight && set.reps && set.setType !== 'warmup'
                   ? sum + (set.weight * set.reps)
                   : sum, 0
               )}kg

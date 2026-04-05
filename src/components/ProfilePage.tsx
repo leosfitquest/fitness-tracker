@@ -11,6 +11,8 @@ import { getExerciseRank, type ExerciseRank } from '../utils/strengthStandards';
 import { calculateHunterTier, checkBadgeEligibility, BADGE_DEFINITIONS, type HunterTierName } from '../utils/hunterTier';
 import { getRank, getNextRank } from '../utils/gamification';
 import { useToast } from './Toast';
+import { MeasurementsPage } from './MeasurementsPage';
+import { AnalyticsBoard } from './AnalyticsBoard';
 
 interface ProfilePageProps {
     userId?: string;
@@ -26,8 +28,9 @@ export function ProfilePage({ userId, onSelectUser }: ProfilePageProps) {
     const [currentUser, setCurrentUser] = useState<string | null>(null);
     const [isFollowing, setIsFollowing] = useState(false);
     const [uploadingAvatar, setUploadingAvatar] = useState(false);
-    const [activeTab, setActiveTab] = useState<'overview' | 'workouts' | 'ranks'>('overview');
+    const [activeTab, setActiveTab] = useState<'overview' | 'workouts' | 'ranks' | 'measurements' | 'analytics'>('overview');
     const { showToast } = useToast();
+    const [sessionLogs, setSessionLogs] = useState<any[]>([]);
 
     // Edit Form State
     const [editName, setEditName] = useState('');
@@ -61,6 +64,13 @@ export function ProfilePage({ userId, onSelectUser }: ProfilePageProps) {
                 setEditName(p.full_name || '');
                 setEditBio(p.bio || '');
                 setEditIsPublic(p.is_public ?? true);
+                
+                // Get Session logs for analytics if it's the current user profile
+                if (targetId && myId === targetId) {
+                    import('../lib/database').then(m => {
+                        m.loadSessionLogs(targetId).then(setSessionLogs).catch(console.error);
+                    });
+                }
                 setEditBodyweight(String(p.bodyweight || ''));
                 setEditGender(p.gender || '');
 
@@ -325,25 +335,17 @@ export function ProfilePage({ userId, onSelectUser }: ProfilePageProps) {
 
             {/* Tab Navigation */}
             <div className="max-w-4xl mx-auto px-4 mt-4">
-                <div className="flex border-b border-border">
-                    {[
-                        { id: 'overview' as const, label: '📊 Overview' },
-                        { id: 'ranks' as const, label: '⚔️ Ranks' },
-                        { id: 'workouts' as const, label: '💪 Workouts' },
-                    ].map(tab => (
-                        <button
-                            key={tab.id}
-                            onClick={() => setActiveTab(tab.id)}
-                            className={`flex-1 py-3 text-sm font-medium transition-colors border-b-2 ${
-                                activeTab === tab.id
-                                    ? 'border-primary text-primary'
-                                    : 'border-transparent text-muted-foreground hover:text-foreground'
-                            }`}
-                        >
-                            {tab.label}
-                        </button>
-                    ))}
-                </div>
+                <nav className="flex space-x-1" aria-label="Tabs">
+                    <button onClick={() => setActiveTab('overview')} className={`w-1/3 py-3 px-1 text-center border-b-2 font-medium text-sm ${activeTab === 'overview' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground'}`}>Overview</button>
+                    <button onClick={() => setActiveTab('workouts')} className={`w-1/3 py-3 px-1 text-center border-b-2 font-medium text-sm ${activeTab === 'workouts' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground'}`}>Workouts</button>
+                    <button onClick={() => setActiveTab('ranks')} className={`w-1/3 py-3 px-1 text-center border-b-2 font-medium text-sm ${activeTab === 'ranks' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground'}`}>Gamification</button>
+                </nav>
+                {currentUser === profile.id && (
+                    <nav className="flex space-x-1 mt-2" aria-label="Tabs Row 2">
+                        <button onClick={() => setActiveTab('measurements')} className={`w-1/2 py-3 px-1 text-center border-b-2 font-medium text-sm ${activeTab === 'measurements' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground'}`}>📏 Measurements</button>
+                        <button onClick={() => setActiveTab('analytics')} className={`w-1/2 py-3 px-1 text-center border-b-2 font-medium text-sm ${activeTab === 'analytics' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground'}`}>📈 Analytics</button>
+                    </nav>
+                )}
             </div>
 
             {/* Tab Content */}
@@ -457,6 +459,12 @@ export function ProfilePage({ userId, onSelectUser }: ProfilePageProps) {
                             </div>
                         )}
                     </div>
+                )}
+                {activeTab === 'measurements' && currentUser === profile.id && (
+                    <MeasurementsPage />
+                )}
+                {activeTab === 'analytics' && currentUser === profile.id && (
+                    <AnalyticsBoard sessionLogs={sessionLogs} />
                 )}
             </div>
 
