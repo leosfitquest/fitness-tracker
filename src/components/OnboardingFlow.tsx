@@ -263,7 +263,7 @@ export function OnboardingFlow({ userId, onComplete }: OnboardingFlowProps) {
                             <span className="text-[10px] text-black font-bold">✓</span>
                           </span>
                         )}
-                        {option.label}
+                        <span>{option.label}</span>
                       </button>
                     );
                   })}
