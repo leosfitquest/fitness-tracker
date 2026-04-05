@@ -338,7 +338,7 @@ export function ProfilePage({ userId, onSelectUser }: ProfilePageProps) {
                 <nav className="flex space-x-1" aria-label="Tabs">
                     <button onClick={() => setActiveTab('overview')} className={`w-1/3 py-3 px-1 text-center border-b-2 font-medium text-sm ${activeTab === 'overview' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground'}`}>Overview</button>
                     <button onClick={() => setActiveTab('workouts')} className={`w-1/3 py-3 px-1 text-center border-b-2 font-medium text-sm ${activeTab === 'workouts' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground'}`}>Workouts</button>
-                    <button onClick={() => setActiveTab('ranks')} className={`w-1/3 py-3 px-1 text-center border-b-2 font-medium text-sm ${activeTab === 'ranks' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground'}`}>Gamification</button>
+                    <button onClick={() => setActiveTab('ranks')} className={`w-1/3 py-3 px-1 text-center border-b-2 font-medium text-sm ${activeTab === 'ranks' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground'}`}>Your Status</button>
                 </nav>
                 {currentUser === profile.id && (
                     <nav className="flex space-x-1 mt-2" aria-label="Tabs Row 2">

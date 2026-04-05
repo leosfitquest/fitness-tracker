@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { Dumbbell } from 'lucide-react'
 
 export function Auth() {
   const [loading, setLoading] = useState(false)
@@ -103,9 +104,14 @@ export function Auth() {
   return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
       <div className="w-full max-w-md space-y-8">
-        <div className="text-center">
-          <h1 className="text-4xl font-bold text-emerald-400">💪 FitTracker</h1>
-          <p className="text-slate-400 mt-2">
+        <div className="text-center flex flex-col items-center">
+          <div className="w-16 h-16 bg-gradient-to-tr from-emerald-500 to-cyan-500 rounded-2xl flex items-center justify-center p-3 mb-4 shadow-xl shadow-emerald-500/20">
+            <Dumbbell className="w-10 h-10 text-slate-950" strokeWidth={2.5} />
+          </div>
+          <h1 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400 tracking-tight">
+            FitTracker
+          </h1>
+          <p className="text-slate-400 mt-2 font-medium">
             {isResetMode 
               ? 'Passwort zurücksetzen' 
               : isSignUp 

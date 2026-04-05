@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from './lib/supabase';
 import { Auth } from './components/Auth';
 import type { User } from '@supabase/supabase-js';
+import { Dumbbell, Search, Bell } from 'lucide-react';
 
 // Components
 import { WorkoutsPage } from "./components/WorkoutsPage";
@@ -669,6 +670,36 @@ function App() {
             {sessionPRs.length > 0 && `${sessionPRs[sessionPRs.length - 1].exerciseName} - ${sessionPRs[sessionPRs.length - 1].type.toUpperCase()}`}
           </div>
         </div>
+      )}
+
+      {/* TOP HEADER */}
+      {mode !== 'active' && (
+        <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-md border-b border-border/50 px-6 py-4 flex items-center justify-between transition-all">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-gradient-to-tr from-emerald-500 to-cyan-500 rounded-lg flex items-center justify-center shadow-lg shadow-emerald-500/20">
+              <Dumbbell className="w-5 h-5 text-slate-950" strokeWidth={3} />
+            </div>
+            <h1 className="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400 tracking-tight">
+              FitTracker
+            </h1>
+          </div>
+          
+          <div className="flex items-center gap-4">
+             <button 
+                onClick={() => setCurrentPage('search')}
+                className={`p-2 rounded-full transition-colors ${currentPage === 'search' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-slate-800 hover:text-foreground'}`}
+              >
+                <Search className="w-5 h-5" />
+             </button>
+             <button 
+                onClick={() => setCurrentPage('notifications')}
+                className={`p-2 rounded-full transition-colors relative ${currentPage === 'notifications' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-slate-800 hover:text-foreground'}`}
+              >
+                <Bell className="w-5 h-5" />
+                {/* Note: In a real app we'd conditionally show a red dot here if unread notifications exist */}
+             </button>
+          </div>
+        </header>
       )}
 
       <div className="px-6 pt-6">
