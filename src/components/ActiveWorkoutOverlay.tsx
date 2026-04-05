@@ -79,6 +79,8 @@ export function ActiveWorkoutOverlay({
     onToggleSuperset,
     availablePlates,
 }: ActiveWorkoutOverlayProps) {
+    if (!workout) return null;
+
     const [isExpanded, setIsExpanded] = useState(true);
     const [draggedExerciseIndex, setDraggedExerciseIndex] = useState<number | null>(null);
     const { showToast } = useToast();

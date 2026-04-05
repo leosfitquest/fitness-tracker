@@ -373,8 +373,11 @@ function App() {
 
   // --- Handlers ---
 
-  const handleStartWorkout = (id: string) => {
-    const workout = workouts.find(w => w.id === id);
+  const handleStartWorkout = (idOrWorkout: string | Workout) => {
+    const workout = typeof idOrWorkout === 'string' 
+      ? workouts.find(w => w.id === idOrWorkout) 
+      : idOrWorkout;
+      
     if (!workout) return;
 
     setSessionPRs([]);
@@ -409,7 +412,7 @@ function App() {
       }, user.id);
 
       setWorkouts(prev => [created, ...prev]);
-      handleStartWorkout(created.id);
+      handleStartWorkout(created);
     } catch (err) {
       console.error("Error creating workout:", err);
     }
