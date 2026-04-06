@@ -26,6 +26,7 @@ import { UsernameModal } from "./components/UsernameModal";
 import { NotificationsPage } from "./components/NotificationsPage";
 import { OnboardingFlow } from "./components/OnboardingFlow";
 import { useToast } from "./components/Toast";
+import { RunTracker } from "./components/RunTracker";
 
 // Hooks & Utils
 import { useWorkoutSession } from './hooks/useWorkoutSession';
@@ -711,6 +712,11 @@ function App() {
         {/* FEED */}
         {currentPage === 'feed' && (
           <FeedPage onNavigate={setCurrentPage} />
+        )}
+
+        {/* RUN TRACKER */}
+        {currentPage === 'run' && user && (
+          <RunTracker user={user} />
         )}
 
         {/* SEARCH */}

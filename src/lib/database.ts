@@ -1,5 +1,5 @@
 import { supabase } from './supabase'
-import type { Workout, WorkoutSessionLog, ExerciseRecord } from '../types.ts';
+import type { Workout, WorkoutSessionLog, ExerciseRecord, WorkoutExercise, RunSession } from '../types.ts';
 import { calculateSessionXP, calculateNewStreak, calculateLevel } from '../utils/gamification';
 
 // ============= WORKOUTS =============
@@ -21,11 +21,30 @@ export async function loadWorkouts(userId: string): Promise<Workout[]> {
     exerciseCount: w.exercise_count,
     estimatedDuration: w.estimated_duration,
     lastPerformed: w.last_performed,
-    exercises: w.exercises || []
+    exercises: normalizeWorkoutExercises(w.exercises)
+  }));
+}
+
+/** Safely normalize exercises from DB — handles both old Exercise[] and new WorkoutExercise[] shapes */
+function normalizeWorkoutExercises(exercises: any): WorkoutExercise[] {
+  if (!exercises || !Array.isArray(exercises)) return [];
+  return exercises.map((ex: any) => ({
+    id: ex.id || ex.exerciseId || crypto.randomUUID(),
+    exerciseId: ex.exerciseId || ex.id || '',
+    name: ex.name || 'Unknown Exercise',
+    muscleGroup: ex.muscleGroup || 'core',
+    imageUrl: ex.imageUrl,
+    targetSets: ex.targetSets ?? ex.sets ?? 3,
+    targetReps: ex.targetReps ?? (ex.reps ? String(ex.reps) : undefined),
+    notes: ex.notes || ex.note,
+    note: ex.note || ex.notes,
+    supersetWith: ex.supersetWith,
+    supersetGroup: ex.supersetGroup,
   }));
 }
 
 export async function saveWorkout(workout: Omit<Workout, 'id' | 'exerciseCount' | 'lastPerformed'>, userId: string): Promise<Workout> {
+  const normalizedExercises = normalizeWorkoutExercises(workout.exercises);
   const { data, error } = await supabase
     .from('workouts')
     .insert({
@@ -33,14 +52,24 @@ export async function saveWorkout(workout: Omit<Workout, 'id' | 'exerciseCount' 
       name: workout.name,
       description: workout.description,
       estimated_duration: workout.estimatedDuration,
-      exercise_count: workout.exercises.length || 0,
-      exercises: workout.exercises || [],
+      exercise_count: normalizedExercises.length || 0,
+      exercises: normalizedExercises,
     })
     .select()
     .single()
 
-  if (error) throw error
-  return data;
+  if (error) throw error;
+  // Map back through same mapper as loadWorkouts for consistency
+  return {
+    id: data.id,
+    userId: data.user_id,
+    name: data.name,
+    description: data.description,
+    exerciseCount: data.exercise_count,
+    estimatedDuration: data.estimated_duration,
+    lastPerformed: data.last_performed,
+    exercises: normalizeWorkoutExercises(data.exercises),
+  };
 }
 
 export async function updateWorkout(workoutId: string, updates: Partial<Workout>): Promise<Workout> {
@@ -518,4 +547,63 @@ export async function createBodyMeasurement(
 export async function deleteBodyMeasurement(id: string): Promise<void> {
   const { error } = await supabase.from('body_measurements').delete().eq('id', id);
   if (error) throw error;
+}
+
+// ============= RUN SESSIONS =============
+
+export async function saveRunSession(session: Omit<RunSession, 'id'>, userId: string): Promise<RunSession> {
+  const { data, error } = await supabase
+    .from('run_sessions')
+    .insert({
+      user_id: userId,
+      started_at: session.startedAt,
+      ended_at: session.endedAt,
+      duration_seconds: session.durationSeconds,
+      distance_km: session.distanceKm,
+      avg_pace_min_km: session.avgPaceMinKm,
+      calories_burned: session.caloriesBurned,
+      route: session.route,
+      notes: session.notes,
+      run_type: session.runType,
+      elevation_gain: session.elevationGain,
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return mapRunSession(data);
+}
+
+export async function loadRunSessions(userId: string): Promise<RunSession[]> {
+  const { data, error } = await supabase
+    .from('run_sessions')
+    .select('*')
+    .eq('user_id', userId)
+    .order('started_at', { ascending: false })
+    .limit(50);
+
+  if (error) throw error;
+  return (data || []).map(mapRunSession);
+}
+
+export async function deleteRunSession(id: string): Promise<void> {
+  const { error } = await supabase.from('run_sessions').delete().eq('id', id);
+  if (error) throw error;
+}
+
+function mapRunSession(r: any): RunSession {
+  return {
+    id: r.id,
+    userId: r.user_id,
+    startedAt: r.started_at,
+    endedAt: r.ended_at,
+    durationSeconds: r.duration_seconds,
+    distanceKm: Number(r.distance_km),
+    avgPaceMinKm: Number(r.avg_pace_min_km),
+    caloriesBurned: r.calories_burned ? Number(r.calories_burned) : undefined,
+    route: r.route || [],
+    notes: r.notes,
+    runType: r.run_type,
+    elevationGain: r.elevation_gain ? Number(r.elevation_gain) : undefined,
+  };
 }

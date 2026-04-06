@@ -44,7 +44,7 @@ export type Workout = {
     estimatedDuration?: number;
     lastPerformed?: string;
     createdAt?: string;
-    exercises: Exercise[];
+    exercises: WorkoutExercise[];
 };
 
 export type SetType = 'normal' | 'warmup' | 'drop' | 'failure';
@@ -226,4 +226,30 @@ export type Notification = {
     is_read: boolean;
     created_at: string;
     from_user?: UserProfile; // Joined data
+};
+
+// ============= RUNNING / CARDIO =============
+
+export type RunRank = 'Copper' | 'Bronze' | 'Silver' | 'Gold' | 'Platinum' | 'Diamond';
+
+export type GPSPoint = {
+    lat: number;
+    lng: number;
+    timestamp: number;
+    altitude?: number;
+};
+
+export type RunSession = {
+    id: string;
+    userId: string;
+    startedAt: string;
+    endedAt: string;
+    durationSeconds: number;
+    distanceKm: number;
+    avgPaceMinKm: number;
+    caloriesBurned?: number;
+    route: GPSPoint[];
+    notes?: string;
+    runType?: 'easy' | 'tempo' | 'interval' | 'long' | 'sprint' | 'race';
+    elevationGain?: number;
 };

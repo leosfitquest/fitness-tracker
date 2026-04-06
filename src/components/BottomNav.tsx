@@ -1,5 +1,4 @@
-
-import { Home, Dumbbell, User } from 'lucide-react';
+import { Home, Dumbbell, User, MapPin } from 'lucide-react';
 
 interface BottomNavProps {
   currentPage: string;
@@ -9,6 +8,7 @@ interface BottomNavProps {
 export function BottomNav({ currentPage, onNavigate }: BottomNavProps) {
   const navItems = [
     { id: 'feed', icon: Home, label: 'Feed' },
+    { id: 'run', icon: MapPin, label: 'Run' },
     { id: 'dashboard', icon: Dumbbell, label: 'Workouts' },
     { id: 'profile', icon: User, label: 'Profile' },
   ];

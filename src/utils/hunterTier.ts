@@ -55,9 +55,22 @@ export const HUNTER_TIERS: HunterTierInfo[] = [
     tier: 'S', title: 'Shadow Monarch', color: '#EF4444',
     glowColor: 'rgba(239, 68, 68, 0.6)', gradient: 'linear-gradient(135deg, #EF4444, #B91C1C, #7F1D1D)',
     icon: '🔱', minAvgScore: 5.5, minDiamondPercent: 95, minExercises: 40,
-    description: 'The pinnacle. You stand above all others. Arise.',
+    description: 'The pinnacle. Master of all disciplines. Diamond in Lifting AND Running. Arise.',
   },
 ];
+
+/**
+ * Check if user qualifies for S-Tier via cross-discipline mastery.
+ * Diamond in both lifting AND running unlocks S-Tier even with lower exercise counts.
+ */
+export function checkCrossDisciplineSRank(
+  liftingDiamondPercent: number,
+  runningRank: string, // RunRank from runningRanks.ts
+  totalLiftingExercises: number,
+): boolean {
+  // Need at least 50% Diamond in lifting AND Diamond in running AND 20+ exercises
+  return liftingDiamondPercent >= 50 && runningRank === 'Diamond' && totalLiftingExercises >= 20;
+}
 
 export interface HunterTierResult {
   tier: HunterTierInfo;

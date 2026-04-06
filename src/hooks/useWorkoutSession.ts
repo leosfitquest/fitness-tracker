@@ -38,27 +38,39 @@ export function useWorkoutSession() {
   }, [workoutStarted, workoutStartTime]);
 
   // Start a new session from a workout template
+  // Handles both old Exercise[] and new WorkoutExercise[] shapes safely
   const startSession = (workout: Workout) => {
-    // setWorkoutStarted(true); // Don't auto-start
     setActiveWorkoutId(workout.id);
     setSelectedWorkoutId(workout.id);
     setSessionStart(new Date().toISOString());
-    setWorkoutStartTime(Date.now()); // This might need to be reset when actually starting?
-    setWorkoutExercises(workout.exercises.map(ex => ({
-      ...ex,
-      exerciseId: ex.id,
-      targetSets: ex.sets,
-      targetReps: ex.reps?.toString(),
-    })));
+    setWorkoutStartTime(Date.now());
+
+    const exercises = (workout.exercises || []);
+    
+    const normalized = exercises.map((ex: any) => ({
+      id: ex.id || ex.exerciseId || crypto.randomUUID(),
+      exerciseId: ex.exerciseId || ex.id || crypto.randomUUID(),
+      name: ex.name || 'Unknown Exercise',
+      muscleGroup: ex.muscleGroup || 'core',
+      imageUrl: ex.imageUrl,
+      targetSets: ex.targetSets ?? ex.sets ?? 3,
+      targetReps: ex.targetReps ?? (ex.reps ? String(ex.reps) : undefined),
+      notes: ex.notes || ex.note,
+      supersetWith: ex.supersetWith,
+      supersetGroup: ex.supersetGroup,
+    }));
+
+    setWorkoutExercises(normalized);
 
     // Initialize data for each exercise
     const initialData: Record<string, ExerciseSessionData> = {};
-    workout.exercises.forEach(ex => {
+    normalized.forEach((ex: any) => {
+      const numSets = Number(ex.targetSets) || 3;
       initialData[ex.id] = {
         exerciseId: ex.id,
         name: ex.name,
         muscleGroup: ex.muscleGroup,
-        sets: Array(ex.sets || 3).fill(null).map((_, i) => ({
+        sets: Array(numSets).fill(null).map((_, i) => ({
           setNumber: i + 1,
           weight: null,
           reps: null,
