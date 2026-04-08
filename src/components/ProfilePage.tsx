@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { getProfile, updateProfile, getFollowers, getFollowing, followUser, unfollowUser, loadWorkouts, loadExerciseRecords, uploadAvatar } from '../lib/database';
+import { getProfile, updateProfile, getFollowers, getFollowing, followUser, unfollowUser, loadWorkouts, loadExerciseRecords, uploadAvatar, loadRunSessions } from '../lib/database';
 import { supabase } from '../lib/supabase';
-import type { UserProfile, Workout, ExerciseRecord } from '../types.ts';
+import type { UserProfile, Workout, ExerciseRecord, RunSession } from '../types.ts';
+import { calculateRunRanks } from '../utils/runningRanks';
 import { FollowList } from './FollowList';
 import { Leaderboard } from './Leaderboard';
 import { HunterRankCard } from './HunterRankCard';
@@ -31,6 +32,7 @@ export function ProfilePage({ userId, onSelectUser }: ProfilePageProps) {
     const [activeTab, setActiveTab] = useState<'overview' | 'workouts' | 'ranks' | 'measurements' | 'analytics'>('overview');
     const { showToast } = useToast();
     const [sessionLogs, setSessionLogs] = useState<any[]>([]);
+    const [runSessions, setRunSessions] = useState<RunSession[]>([]);
 
     // Edit Form State
     const [editName, setEditName] = useState('');
@@ -89,6 +91,9 @@ export function ProfilePage({ userId, onSelectUser }: ProfilePageProps) {
 
                 const records = await loadExerciseRecords(targetId);
                 setExerciseRecords(records);
+
+                const runs = await loadRunSessions(targetId);
+                setRunSessions(runs);
             }
         } catch (e) {
             console.error(e);
@@ -174,8 +179,11 @@ export function ProfilePage({ userId, onSelectUser }: ProfilePageProps) {
     const rankOrder: Record<ExerciseRank, number> = { Bronze: 1, Silver: 2, Gold: 3, Platinum: 4, Ember: 5, Diamond: 6 };
     exerciseRankList.sort((a, b) => rankOrder[b.rank] - rankOrder[a.rank]);
 
-    // Calculate Hunter Tier
-    const tierResult = calculateHunterTier(exerciseRankList.map(r => r.rank));
+    // Calculate Running Rank
+    const runRankResult = calculateRunRanks(runSessions);
+
+    // Calculate Hunter Tier (passing running rank for potential S-Tier)
+    const tierResult = calculateHunterTier(exerciseRankList.map(r => r.rank), runRankResult.overallRank);
 
     // Calculate badges
     const totalWorkouts = workouts.length;

@@ -83,7 +83,10 @@ export interface HunterTierResult {
 /**
  * Calculate the Hunter Tier from an array of exercise ranks.
  */
-export function calculateHunterTier(exerciseRanks: ExerciseRank[]): HunterTierResult {
+export function calculateHunterTier(
+  exerciseRanks: ExerciseRank[],
+  runRank?: 'Copper' | 'Bronze' | 'Silver' | 'Gold' | 'Platinum' | 'Diamond'
+): HunterTierResult {
   const totalExercises = exerciseRanks.length;
 
   // Rank distribution
@@ -113,6 +116,11 @@ export function calculateHunterTier(exerciseRanks: ExerciseRank[]): HunterTierRe
       matchedTier = t;
       break;
     }
+  }
+
+  // Check cross-discipline S-Tier bypass
+  if (runRank && checkCrossDisciplineSRank(diamondPercent, runRank, totalExercises)) {
+    matchedTier = HUNTER_TIERS[5]; // S-Tier
   }
 
   return {
