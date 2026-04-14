@@ -48,7 +48,14 @@ export function useGPSTracking() {
   const lastPointRef = useRef<GPSPoint | null>(null);
   const distanceRef = useRef(0);
 
-  // Timer for elapsed seconds
+  // *** FIX: Store route in a mutable ref to avoid O(n²) spread on every GPS tick ***
+  const routeRef = useRef<GPSPoint[]>([]);
+
+  // *** FIX: Keep a live mirror of state in a ref so stopTracking never has a stale closure ***
+  const stateRef = useRef<GPSState>(state);
+  stateRef.current = state;
+
+  // Timer for elapsed seconds — only updates duration/pace, NOT the route
   useEffect(() => {
     if (state.isTracking && !state.isPaused) {
       timerRef.current = window.setInterval(() => {
@@ -70,17 +77,64 @@ export function useGPSTracking() {
     };
   }, [state.isTracking, state.isPaused]);
 
+  /** Shared handler for incoming GPS positions (used by both start and resume). */
+  const handleGPSPosition = useCallback((position: GeolocationPosition) => {
+    const point: GPSPoint = {
+      lat: position.coords.latitude,
+      lng: position.coords.longitude,
+      timestamp: position.timestamp,
+      altitude: position.coords.altitude ?? undefined,
+    };
+
+    // Calculate distance from last point
+    if (lastPointRef.current) {
+      const d = haversineDistance(
+        lastPointRef.current.lat, lastPointRef.current.lng,
+        point.lat, point.lng
+      );
+      // Filter GPS jitter (skip tiny jumps < 3m)
+      if (d > 0.003) {
+        distanceRef.current += d;
+        lastPointRef.current = point;
+      }
+    } else {
+      lastPointRef.current = point;
+    }
+
+    // *** FIX: O(1) push into the ref, then set a new array reference for React ***
+    routeRef.current.push(point);
+
+    setState(prev => ({
+      ...prev,
+      currentPosition: point,
+      route: routeRef.current, // Same array identity — React will diff by reference
+      distanceKm: Math.round(distanceRef.current * 1000) / 1000,
+      error: null,
+    }));
+  }, []);
+
+  const handleGPSError = useCallback((err: GeolocationPositionError) => {
+    setState(prev => ({ ...prev, error: `GPS Error: ${err.message}` }));
+  }, []);
+
+  const GPS_OPTIONS: PositionOptions = {
+    enableHighAccuracy: true,
+    maximumAge: 3000,
+    timeout: 10000,
+  };
+
   const startTracking = useCallback(() => {
     if (!navigator.geolocation) {
       setState(prev => ({ ...prev, error: 'Geolocation not supported by this browser.' }));
       return;
     }
 
-    // Reset
+    // Reset all refs
     distanceRef.current = 0;
     lastPointRef.current = null;
     pausedTimeRef.current = 0;
     startTimeRef.current = Date.now();
+    routeRef.current = []; // *** FIX: reset route ref ***
 
     setState({
       isTracking: true,
@@ -94,47 +148,11 @@ export function useGPSTracking() {
     });
 
     watchIdRef.current = navigator.geolocation.watchPosition(
-      (position) => {
-        const point: GPSPoint = {
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-          timestamp: position.timestamp,
-          altitude: position.coords.altitude ?? undefined,
-        };
-
-        // Calculate distance from last point
-        if (lastPointRef.current) {
-          const d = haversineDistance(
-            lastPointRef.current.lat, lastPointRef.current.lng,
-            point.lat, point.lng
-          );
-          // Filter GPS jitter (skip tiny jumps < 3m)
-          if (d > 0.003) {
-            distanceRef.current += d;
-            lastPointRef.current = point;
-          }
-        } else {
-          lastPointRef.current = point;
-        }
-
-        setState(prev => ({
-          ...prev,
-          currentPosition: point,
-          route: [...prev.route, point],
-          distanceKm: Math.round(distanceRef.current * 1000) / 1000,
-          error: null,
-        }));
-      },
-      (err) => {
-        setState(prev => ({ ...prev, error: `GPS Error: ${err.message}` }));
-      },
-      {
-        enableHighAccuracy: true,
-        maximumAge: 3000,
-        timeout: 10000,
-      }
+      handleGPSPosition,
+      handleGPSError,
+      GPS_OPTIONS,
     );
-  }, []);
+  }, [handleGPSPosition, handleGPSError]);
 
   const pauseTracking = useCallback(() => {
     if (watchIdRef.current !== null) {
@@ -150,42 +168,13 @@ export function useGPSTracking() {
     setState(prev => ({ ...prev, isPaused: false }));
 
     watchIdRef.current = navigator.geolocation.watchPosition(
-      (position) => {
-        const point: GPSPoint = {
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-          timestamp: position.timestamp,
-          altitude: position.coords.altitude ?? undefined,
-        };
-
-        if (lastPointRef.current) {
-          const d = haversineDistance(
-            lastPointRef.current.lat, lastPointRef.current.lng,
-            point.lat, point.lng
-          );
-          if (d > 0.003) {
-            distanceRef.current += d;
-            lastPointRef.current = point;
-          }
-        } else {
-          lastPointRef.current = point;
-        }
-
-        setState(prev => ({
-          ...prev,
-          currentPosition: point,
-          route: [...prev.route, point],
-          distanceKm: Math.round(distanceRef.current * 1000) / 1000,
-          error: null,
-        }));
-      },
-      (err) => {
-        setState(prev => ({ ...prev, error: `GPS Error: ${err.message}` }));
-      },
-      { enableHighAccuracy: true, maximumAge: 3000, timeout: 10000 }
+      handleGPSPosition,
+      handleGPSError,
+      GPS_OPTIONS,
     );
-  }, []);
+  }, [handleGPSPosition, handleGPSError]);
 
+  // *** FIX: stopTracking reads from stateRef.current — no stale closure ***
   const stopTracking = useCallback((): GPSState => {
     if (watchIdRef.current !== null) {
       navigator.geolocation.clearWatch(watchIdRef.current);
@@ -195,11 +184,29 @@ export function useGPSTracking() {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
-    
-    const finalState = { ...state, isTracking: false, isPaused: false };
+
+    // Compute final duration from the actual clock, not the state snapshot
+    const finalDuration = startTimeRef.current
+      ? Math.floor((Date.now() - startTimeRef.current) / 1000) - pausedTimeRef.current
+      : stateRef.current.durationSeconds;
+
+    const finalPace = distanceRef.current > 0.01
+      ? Math.round(((finalDuration / 60) / distanceRef.current) * 100) / 100
+      : 0;
+
+    const finalState: GPSState = {
+      ...stateRef.current,
+      isTracking: false,
+      isPaused: false,
+      route: [...routeRef.current], // Return a snapshot copy
+      distanceKm: Math.round(distanceRef.current * 1000) / 1000,
+      durationSeconds: finalDuration,
+      avgPaceMinKm: finalPace,
+    };
+
     setState(finalState);
     return finalState;
-  }, [state]);
+  }, []); // *** FIX: No dependency on `state` — reads from refs ***
 
   // Cleanup on unmount
   useEffect(() => {

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { getProfile, updateProfile, getFollowers, getFollowing, followUser, unfollowUser, loadWorkouts, loadExerciseRecords, uploadAvatar, loadRunSessions } from '../lib/database';
 import { supabase } from '../lib/supabase';
 import type { UserProfile, Workout, ExerciseRecord, RunSession } from '../types.ts';
@@ -153,18 +153,21 @@ export function ProfilePage({ userId, onSelectUser }: ProfilePageProps) {
         }
     };
 
-    // ========== COMPUTED VALUES ==========
+    // ========== COMPUTED VALUES (MEMOIZED) ==========
 
-    // Calculate exercise ranks
-    const exerciseRankList: { exerciseId: string; exerciseName: string; rank: ExerciseRank; est1RM: number; bwMult: number }[] = [];
     const bodyweight = profile?.bodyweight || 0;
     const gender = (profile?.gender === 'male' || profile?.gender === 'female') ? profile.gender : 'male';
 
-    if (bodyweight > 0) {
+    // *** FIX: Memoize exercise rank list — only recompute when records/bodyweight/gender change ***
+    const exerciseRankList = useMemo(() => {
+        const rankOrder: Record<ExerciseRank, number> = { Bronze: 1, Silver: 2, Gold: 3, Platinum: 4, Ember: 5, Diamond: 6 };
+        if (bodyweight <= 0) return [];
+
+        const list: { exerciseId: string; exerciseName: string; rank: ExerciseRank; est1RM: number; bwMult: number }[] = [];
         Object.values(exerciseRecords).forEach(record => {
             if (record.estimated1RM > 0) {
                 const { rank, bwMultiplier } = getExerciseRank(record.exerciseName, record.estimated1RM, bodyweight, gender);
-                exerciseRankList.push({
+                list.push({
                     exerciseId: record.exerciseId,
                     exerciseName: record.exerciseName,
                     rank,
@@ -173,26 +176,27 @@ export function ProfilePage({ userId, onSelectUser }: ProfilePageProps) {
                 });
             }
         });
-    }
+        list.sort((a, b) => rankOrder[b.rank] - rankOrder[a.rank]);
+        return list;
+    }, [exerciseRecords, bodyweight, gender]);
 
-    // Sort by rank score descending
-    const rankOrder: Record<ExerciseRank, number> = { Bronze: 1, Silver: 2, Gold: 3, Platinum: 4, Ember: 5, Diamond: 6 };
-    exerciseRankList.sort((a, b) => rankOrder[b.rank] - rankOrder[a.rank]);
+    // *** FIX: Memoize running rank ***
+    const runRankResult = useMemo(() => calculateRunRanks(runSessions), [runSessions]);
 
-    // Calculate Running Rank
-    const runRankResult = calculateRunRanks(runSessions);
+    // *** FIX: Memoize Hunter Tier (Shadow Monarch cross-discipline check) ***
+    const tierResult = useMemo(
+        () => calculateHunterTier(exerciseRankList.map(r => r.rank), runRankResult.overallRank),
+        [exerciseRankList, runRankResult.overallRank]
+    );
 
-    // Calculate Hunter Tier (passing running rank for potential S-Tier)
-    const tierResult = calculateHunterTier(exerciseRankList.map(r => r.rank), runRankResult.overallRank);
-
-    // Calculate badges
+    // *** FIX: Memoize badge eligibility ***
     const totalWorkouts = workouts.length;
-    const earnedBadgeIds = checkBadgeEligibility({
+    const earnedBadgeIds = useMemo(() => checkBadgeEligibility({
         currentStreak: profile?.current_streak || 0,
         totalWorkouts,
         exerciseRanks: exerciseRankList,
         hunterTier: (tierResult.tier.tier as HunterTierName),
-    });
+    }), [profile?.current_streak, totalWorkouts, exerciseRankList, tierResult.tier.tier]);
 
     // XP rank info
     const xpRank = getRank(profile?.xp || 0);

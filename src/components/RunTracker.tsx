@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useGPSTracking } from '../hooks/useGPSTracking';
 import { MapContainer, TileLayer, Polyline, useMap } from 'react-leaflet';
 import { formatPace, estimateRunCalories, calculateRunRanks, RUN_RANK_COLORS, RUN_RANK_ICONS, getRunDistanceProgress } from '../utils/runningRanks';
@@ -86,9 +86,10 @@ export function RunTracker({ user }: RunTrackerProps) {
     setRunNotes('');
   };
 
-  const rankResult = calculateRunRanks(runSessions);
-  const distProgress = getRunDistanceProgress(rankResult.totalDistanceKm);
-  const calories = estimateRunCalories(distanceKm);
+  // *** FIX: Memoize so these only recompute when run data changes, not on every 1s timer tick ***
+  const rankResult = useMemo(() => calculateRunRanks(runSessions), [runSessions]);
+  const distProgress = useMemo(() => getRunDistanceProgress(rankResult.totalDistanceKm), [rankResult.totalDistanceKm]);
+  const calories = useMemo(() => estimateRunCalories(distanceKm), [distanceKm]);
 
   const runTypes: { value: RunSession['runType']; label: string; icon: string }[] = [
     { value: 'easy', label: 'Easy', icon: '🚶' },
