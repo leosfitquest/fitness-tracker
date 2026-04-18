@@ -164,8 +164,7 @@ export function ActiveWorkoutOverlay({
                     ) : (
                         <button
                             onClick={onCompleteWorkout}
-                            disabled={Object.keys(workoutExercisesData).length === 0}
-                            className="px-4 py-1.5 bg-emerald-500 text-black font-bold rounded-lg text-sm disabled:opacity-50"
+                            className="px-4 py-1.5 bg-emerald-500 text-black font-bold rounded-lg text-sm"
                         >
                             FINISH
                         </button>

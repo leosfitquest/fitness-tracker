@@ -207,6 +207,7 @@ function App() {
   const [editingWorkoutId, setEditingWorkoutId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editDescription, setEditDescription] = useState("");
+  const [editExercises, setEditExercises] = useState<WorkoutExercise[]>([]);
 
   // --- Effects ---
 
@@ -485,6 +486,32 @@ function App() {
     }
   };
 
+  // FIX: activeSets aus workoutExercisesData laden wenn Exercise gewechselt wird
+  const handleSelectExercise = (id: string | null) => {
+    if (id) {
+      // Vorhandene Sets aus dem gespeicherten State laden (oder leere Sets wenn neue Übung)
+      const existingData = workoutExercisesData[id];
+      if (existingData && existingData.sets.length > 0) {
+        setActiveSets(existingData.sets);
+      } else {
+        // Neue Übung: letzte Werte aus exerciseRecords nehmen (wie Hevy)
+        const exercise = workoutExercises.find(ex => ex.id === id);
+        const exerciseId = exercise?.exerciseId || id;
+        const lastRecord = exerciseRecords[exerciseId];
+        const numSets = Number(exercise?.targetSets) || 3;
+        const defaultSets: ActiveSet[] = Array(numSets).fill(null).map((_, i) => ({
+          setNumber: i + 1,
+          weight: lastRecord?.bestSet?.weight ?? null,
+          reps: lastRecord?.bestSet?.reps ?? null,
+          rpe: null,
+          completed: false,
+        }));
+        setActiveSets(defaultSets);
+      }
+    }
+    setSelectedExerciseId(id);
+  };
+
   const handleSaveExercise = async () => {
     if (!selectedExerciseId) return;
 
@@ -498,7 +525,7 @@ function App() {
 
     // Save to local Hook state
     saveExercise(selectedExerciseId, {
-      exerciseId: selectedExerciseId,
+      exerciseId: exercise.exerciseId || selectedExerciseId,
       name: exercise.name,
       muscleGroup: exercise.muscleGroup,
       note: exercise.note,
@@ -526,19 +553,25 @@ function App() {
         }
       }
 
-      const currentRecord = exerciseRecords[selectedExerciseId];
+      const exerciseRecordKey = exercise.exerciseId || selectedExerciseId;
+      const currentRecord = exerciseRecords[exerciseRecordKey];
+      // FIX: Neue PR-Liste nur für diese Übung, nicht akkumulieren
       const newPRs: PersonalRecord[] = [];
       const date = new Date().toISOString();
 
       if (!currentRecord || maxVolume > currentRecord.bestVolume) {
-        newPRs.push({ exerciseId: selectedExerciseId, exerciseName: exercise.name, type: 'volume', oldValue: currentRecord?.bestVolume || 0, newValue: maxVolume, achievedAt: date });
+        newPRs.push({ exerciseId: exerciseRecordKey, exerciseName: exercise.name, type: 'volume', oldValue: currentRecord?.bestVolume || 0, newValue: maxVolume, achievedAt: date });
       }
       if (!currentRecord || max1RM > currentRecord.estimated1RM) {
-        newPRs.push({ exerciseId: selectedExerciseId, exerciseName: exercise.name, type: '1RM', oldValue: currentRecord?.estimated1RM || 0, newValue: max1RM, achievedAt: date });
+        newPRs.push({ exerciseId: exerciseRecordKey, exerciseName: exercise.name, type: '1RM', oldValue: currentRecord?.estimated1RM || 0, newValue: max1RM, achievedAt: date });
       }
 
       if (newPRs.length > 0) {
-        setSessionPRs(prev => [...prev, ...newPRs]);
+        // FIX: Keine Duplikate — nur PRs für diese Übung hinzufügen (alte entfernen)
+        setSessionPRs(prev => [
+          ...prev.filter(p => p.exerciseId !== exerciseRecordKey),
+          ...newPRs
+        ]);
         setShowPRNotification(true);
         setTimeout(() => setShowPRNotification(false), 5000);
       }
@@ -546,13 +579,13 @@ function App() {
       // Update Record if improved
       if (!currentRecord || maxVolume > currentRecord.bestVolume || max1RM > currentRecord.estimated1RM) {
         const newRecord: ExerciseRecord = {
-          exerciseId: selectedExerciseId,
+          exerciseId: exerciseRecordKey,
           exerciseName: exercise.name,
           bestVolume: Math.max(currentRecord?.bestVolume || 0, maxVolume),
           bestSet: (!currentRecord || maxVolume > currentRecord.bestVolume) ? { ...bestSet, date } : currentRecord.bestSet,
           estimated1RM: Math.max(currentRecord?.estimated1RM || 0, max1RM),
         };
-        setExerciseRecords(prev => ({ ...prev, [selectedExerciseId]: newRecord }));
+        setExerciseRecords(prev => ({ ...prev, [exerciseRecordKey]: newRecord }));
         upsertExerciseRecord(newRecord, user.id).catch(console.error);
       }
     }
@@ -561,16 +594,50 @@ function App() {
   };
 
   const handleCompleteWorkoutSession = async () => {
-    if (!selectedWorkoutId || !sessionStart || !workoutStartTime || !user) return;
+    if (!selectedWorkoutId || !user) return;
+    // FIX: sessionStart und workoutStartTime auf jetzt setzen falls nicht vorhanden (User hat START nicht gedrückt)
+    const effectiveSessionStart = sessionStart || new Date().toISOString();
+    const effectiveStartTime = workoutStartTime || Date.now();
 
     const workout = workouts.find(w => w.id === selectedWorkoutId);
     if (!workout) return;
 
     const end = new Date().toISOString();
-    const durationSeconds = Math.floor((Date.now() - workoutStartTime) / 1000);
+    const durationSeconds = Math.floor((Date.now() - effectiveStartTime) / 1000);
     const durationMinutes = Math.round(durationSeconds / 60);
 
-    const allExercises = Object.values(workoutExercisesData);
+    // FIX: Auch aktuell geöffnete Übung (activeSets) mit speichern, falls nicht gespeichert
+    let exercisesData = { ...workoutExercisesData };
+    if (selectedExerciseId) {
+      const exercise = workoutExercises.find(ex => ex.id === selectedExerciseId);
+      if (exercise && activeSets.length > 0) {
+        const volume = activeSets.reduce((sum, set) => {
+          if (set.weight && set.reps && set.completed) return sum + set.weight * set.reps;
+          return sum;
+        }, 0);
+        exercisesData[selectedExerciseId] = {
+          exerciseId: exercise.exerciseId || selectedExerciseId,
+          name: exercise.name,
+          muscleGroup: exercise.muscleGroup,
+          sets: activeSets,
+          volume,
+        };
+      }
+    }
+
+    const allExercises = workoutExercises.map(ex => {
+      const data = exercisesData[ex.id];
+      if (data) return data;
+      // Übung ohne gespeicherte Daten trotzdem mit leeren Sets mitschicken
+      return {
+        exerciseId: ex.exerciseId || ex.id,
+        name: ex.name,
+        muscleGroup: ex.muscleGroup,
+        sets: [],
+        volume: 0,
+      };
+    }).filter(ex => ex.sets.some(s => s.completed)); // Nur Exercises mit mind. 1 abgeschlossenen Set
+
     const totalVol = allExercises.reduce((sum, ex) => sum + ex.volume, 0);
     const totalSets = allExercises.reduce((sum, ex) => sum + ex.sets.filter((s) => s.completed).length, 0);
 
@@ -578,7 +645,7 @@ function App() {
       id: crypto.randomUUID(),
       workoutId: workout.id,
       workoutName: workout.name,
-      startedAt: sessionStart,
+      startedAt: effectiveSessionStart,
       endedAt: end,
       durationMinutes,
       durationSeconds,
@@ -739,7 +806,7 @@ function App() {
             onStart={handleStartWorkout}
             onEdit={(id) => {
               const w = workouts.find(w => w.id === id);
-              if (w) { setEditingWorkoutId(id); setEditName(w.name); setEditDescription(w.description || ""); }
+              if (w) { setEditingWorkoutId(id); setEditName(w.name); setEditDescription(w.description || ""); setEditExercises(w.exercises || []); }
             }}
             onDelete={(id) => {
               setWorkouts(prev => prev.filter(w => w.id !== id));
@@ -807,7 +874,7 @@ function App() {
             isDeload={isDeload}
             allExercises={allAppExercises}
             historicalPRData={historicalPRData}
-            onSelectExercise={setSelectedExerciseId}
+            onSelectExercise={handleSelectExercise}
             onAddExercise={() => setShowExerciseSearchModal(true)}
             showRPE={showRPE}
             show1RM={show1RM}
@@ -864,24 +931,82 @@ function App() {
 
         {
           editingWorkoutId && (
-            <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-              <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 max-w-md w-full">
+            <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 overflow-y-auto">
+              <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 max-w-md w-full my-4">
                 <h2 className="text-xl font-bold mb-4">Edit Workout</h2>
                 <div className="space-y-4">
-                  <div><label className="text-xs text-slate-400">Name</label><input value={editName} onChange={(e) => setEditName(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded p-2" /></div>
-                  <div><label className="text-xs text-slate-400">Description</label><textarea value={editDescription} onChange={(e) => setEditDescription(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded p-2" /></div>
+                  <div>
+                    <label className="text-xs text-slate-400 block mb-1">Name</label>
+                    <input value={editName} onChange={(e) => setEditName(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded p-2" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-400 block mb-1">Description</label>
+                    <textarea value={editDescription} onChange={(e) => setEditDescription(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded p-2" rows={2} />
+                  </div>
+
+                  {/* Exercises Editor */}
+                  <div>
+                    <label className="text-xs text-slate-400 block mb-2">Exercises ({editExercises.length})</label>
+                    <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                      {editExercises.map((ex, i) => (
+                        <div key={ex.id} className="bg-slate-800/60 border border-slate-700 rounded-lg p-3 flex items-center gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium text-white truncate">{ex.name}</div>
+                            <div className="flex gap-2 mt-1">
+                              <input
+                                type="number"
+                                value={ex.targetSets ?? 3}
+                                onChange={(e) => {
+                                  const updated = [...editExercises];
+                                  updated[i] = { ...updated[i], targetSets: parseInt(e.target.value) || 3 };
+                                  setEditExercises(updated);
+                                }}
+                                className="w-16 bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs text-center"
+                                placeholder="Sets"
+                                min={1}
+                              />
+                              <span className="text-xs text-slate-500 self-center">sets</span>
+                              <input
+                                type="text"
+                                value={ex.targetReps ?? ''}
+                                onChange={(e) => {
+                                  const updated = [...editExercises];
+                                  updated[i] = { ...updated[i], targetReps: e.target.value };
+                                  setEditExercises(updated);
+                                }}
+                                className="w-20 bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs text-center"
+                                placeholder="Reps"
+                              />
+                              <span className="text-xs text-slate-500 self-center">reps</span>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => setEditExercises(prev => prev.filter((_, idx) => idx !== i))}
+                            className="text-red-400 hover:text-red-300 text-lg px-1 flex-shrink-0"
+                            title="Übung entfernen"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                      {editExercises.length === 0 && (
+                        <div className="text-center py-4 text-slate-500 text-sm">Keine Übungen</div>
+                      )}
+                    </div>
+                  </div>
                 </div>
+
                 <div className="flex gap-3 mt-6">
                   <button onClick={() => setEditingWorkoutId(null)} className="px-4 py-2 text-slate-400">Cancel</button>
                   <button onClick={async () => {
                     if (editingWorkoutId && editName.trim()) {
-                      setWorkouts(prev => prev.map(w => w.id === editingWorkoutId ? { ...w, name: editName, description: editDescription } : w));
+                      setWorkouts(prev => prev.map(w => w.id === editingWorkoutId ? { ...w, name: editName, description: editDescription, exercises: editExercises, exerciseCount: editExercises.length } : w));
                       try {
-                        await updateWorkout(editingWorkoutId, { name: editName, description: editDescription });
+                        await updateWorkout(editingWorkoutId, { name: editName, description: editDescription, exercises: editExercises, exerciseCount: editExercises.length });
                       } catch (e) { console.error(e); }
                     }
                     setEditingWorkoutId(null);
-                  }} className="flex-1 py-2 bg-emerald-500 text-black rounded">Save</button>
+                  }} className="flex-1 py-2 bg-emerald-500 text-black rounded font-bold">Speichern</button>
                 </div>
               </div>
             </div>
