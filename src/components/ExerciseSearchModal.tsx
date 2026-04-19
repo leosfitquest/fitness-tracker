@@ -3,6 +3,7 @@ import { useState, useMemo } from 'react';
 import type { Exercise } from '../types.ts';
 import { useExercisePreferences } from '../hooks/useExercisePreferences';
 import { CustomExerciseModal } from './CustomExerciseModal';
+import { MuscleHeatmap } from './MuscleHeatmap';
 
 
 
@@ -131,12 +132,25 @@ export function ExerciseSearchModal({
                       onClick={() => handleSelect(ex.id)}
                       className="flex-1 h-full p-2 rounded-lg border border-border bg-card hover:border-primary transition-all text-left flex items-center gap-3"
                     >
-                      {ex.imageUrl && (
+                      {/* Uniform muscle thumbnail — heatmap if available, stock image as fallback */}
+                      {(ex.primaryMuscles && ex.primaryMuscles.length > 0) ? (
+                        <div className="w-10 h-10 flex-shrink-0 flex items-center justify-center bg-slate-800/60 rounded-md">
+                          <MuscleHeatmap
+                            primaryMuscles={ex.primaryMuscles}
+                            secondaryMuscles={ex.secondaryMuscles}
+                            height={36}
+                          />
+                        </div>
+                      ) : ex.imageUrl ? (
                         <img
                           src={ex.imageUrl}
                           alt={ex.name}
-                          className="w-10 h-10 object-cover rounded-md bg-secondary"
+                          className="w-10 h-10 object-cover rounded-md bg-secondary flex-shrink-0"
                         />
+                      ) : (
+                        <div className="w-10 h-10 rounded-md bg-slate-800 flex-shrink-0 flex items-center justify-center text-slate-600 text-xs font-bold">
+                          {ex.muscleGroup.slice(0, 2).toUpperCase()}
+                        </div>
                       )}
                       <div className="flex-1 min-w-0">
                         <h3 className="font-bold text-foreground group-hover:text-primary truncate">

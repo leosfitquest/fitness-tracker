@@ -731,14 +731,24 @@ function App() {
         </div>
       )}
 
-      {showPRNotification && (
-        <div className="fixed top-4 right-4 bg-gradient-to-r from-amber-500 to-orange-500 text-black px-6 py-4 rounded-xl shadow-2xl z-50 animate-bounce">
-          <div className="font-bold text-lg flex items-center gap-2">🎉 NEW PR!</div>
-          <div className="text-sm mt-1">
-            {sessionPRs.length > 0 && `${sessionPRs[sessionPRs.length - 1].exerciseName} - ${sessionPRs[sessionPRs.length - 1].type.toUpperCase()}`}
+      {showPRNotification && (() => {
+        // Deduplicate PRs by exerciseId+type so we never show the same PR twice
+        const uniquePRs = sessionPRs.filter((pr, idx, arr) =>
+          arr.findIndex(p => p.exerciseId === pr.exerciseId && p.type === pr.type) === idx
+        );
+        const displayPR = uniquePRs[uniquePRs.length - 1];
+        return (
+          <div className="fixed top-4 right-4 bg-gradient-to-r from-amber-500 to-orange-500 text-black px-5 py-3 rounded-xl shadow-2xl z-50 flex items-start gap-3">
+            <div>
+              <div className="font-bold text-base flex items-center gap-1.5">🎉 NEW PR! {uniquePRs.length > 1 && <span className="text-xs bg-black/20 px-1.5 py-0.5 rounded-full">+{uniquePRs.length}</span>}</div>
+              {displayPR && (
+                <div className="text-xs mt-0.5 font-medium">{displayPR.exerciseName} · {displayPR.type.toUpperCase()}</div>
+              )}
+            </div>
+            <button onClick={() => setShowPRNotification(false)} className="text-black/60 hover:text-black ml-1 text-lg leading-none">✕</button>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* TOP HEADER */}
       {mode !== 'active' && (
@@ -748,7 +758,7 @@ function App() {
               <Dumbbell className="w-5 h-5 text-slate-950" strokeWidth={3} />
             </div>
             <h1 className="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400 tracking-tight">
-              FitTracker
+              FitQuest
             </h1>
           </div>
           
