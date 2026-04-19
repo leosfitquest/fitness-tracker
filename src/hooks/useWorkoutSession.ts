@@ -177,6 +177,48 @@ export function useWorkoutSession() {
     });
   };
 
+  const replaceExercise = (oldId: string, newExerciseOrig: any) => {
+    const newEx = {
+      id: newExerciseOrig.id || `ex-${Date.now()}`,
+      exerciseId: newExerciseOrig.id,
+      name: newExerciseOrig.name,
+      muscleGroup: newExerciseOrig.muscleGroup || 'core',
+      targetSets: 3,
+      notes: ''
+    };
+
+    setWorkoutExercises(prev => {
+      const copy = [...prev];
+      const idx = copy.findIndex(e => e.id === oldId);
+      if (idx !== -1) {
+        copy[idx] = newEx;
+      }
+      return copy;
+    });
+
+    setWorkoutExercisesData(prev => {
+      const newData = { ...prev };
+      delete newData[oldId];
+      newData[newEx.id] = {
+        exerciseId: newEx.exerciseId,
+        name: newEx.name,
+        muscleGroup: newEx.muscleGroup as any,
+        sets: Array(newEx.targetSets || 3).fill(null).map((_, i) => ({
+          setNumber: i + 1,
+          weight: null,
+          reps: null,
+          rpe: null,
+          completed: false
+        })),
+        volume: 0
+      };
+      return newData;
+    });
+
+    // Auto-select the newly swapped exercise
+    setSelectedExerciseId(newEx.id);
+  };
+
   const moveExercise = (from: number, to: number) => {
     setWorkoutExercises(prev => {
       const exercises = [...prev];
@@ -273,6 +315,7 @@ export function useWorkoutSession() {
     selectExercise: (id: string) => setSelectedExerciseId(id),
     saveExercise: saveExerciseData,
     removeExercise,
+    replaceExercise,
     moveExercise,
     toggleSuperset,
     addExercisesToWorkout: addExercises,

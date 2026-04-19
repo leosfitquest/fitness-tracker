@@ -26,7 +26,7 @@ import { UsernameModal } from "./components/UsernameModal";
 import { NotificationsPage } from "./components/NotificationsPage";
 import { OnboardingFlow } from "./components/OnboardingFlow";
 import { useToast } from "./components/Toast";
-import { RunTracker } from "./components/RunTracker";
+import { MovementHub } from "./components/MovementHub";
 
 // Hooks & Utils
 import { useWorkoutSession } from './hooks/useWorkoutSession';
@@ -169,6 +169,7 @@ function App() {
     // selectExercise,
     saveExercise,
     removeExercise,
+    replaceExercise,
     moveExercise,
     toggleSuperset,
     addExercisesToWorkout,
@@ -208,6 +209,10 @@ function App() {
   const [editName, setEditName] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [editExercises, setEditExercises] = useState<WorkoutExercise[]>([]);
+
+  // Movement Patterns State
+  const [movementPatterns, setMovementPatterns] = useState<import('./types').MovementPattern[]>([]);
+
 
   // --- Effects ---
 
@@ -251,12 +256,15 @@ function App() {
       setIsLoadingData(true);
       setError(null);
       try {
-        const [loadedWorkouts, loadedLogs, loadedRecords, loadedCustomExs] = await Promise.all([
+        const [loadedWorkouts, loadedLogs, loadedRecords, loadedCustomExs, patternsData] = await Promise.all([
           loadWorkouts(user.id),
           loadSessionLogs(user.id),
           loadExerciseRecords(user.id),
-          getCustomExercises(user.id)
+          getCustomExercises(user.id),
+          import('./lib/cycleAndStepsDb').then(m => m.loadMovementPatterns(user.id)).catch(() => [])
         ]);
+
+        setMovementPatterns(patternsData as any);
 
         const customExercisesMapped: Exercise[] = loadedCustomExs.map(ex => ({
           id: ex.id,
@@ -791,9 +799,9 @@ function App() {
           <FeedPage onNavigate={setCurrentPage} />
         )}
 
-        {/* RUN TRACKER */}
+        {/* MOVEMENT HUB (Steps + Run) */}
         {currentPage === 'run' && user && (
-          <RunTracker user={user} />
+          <MovementHub user={user} />
         )}
 
         {/* SEARCH */}
@@ -878,6 +886,7 @@ function App() {
 
             onSetChange={(_, sets) => setActiveSets(sets)}
             onRemoveExercise={removeExercise}
+            onReplaceExercise={replaceExercise}
             onMoveExercise={moveExercise}
             onSaveExercise={handleSaveExercise}
             selectedExerciseId={selectedExerciseId}
@@ -890,6 +899,8 @@ function App() {
             show1RM={show1RM}
             showPlateCalculator={showPlateCalculator}
             availablePlates={availablePlates}
+            movementPatterns={movementPatterns}
+            onUpdateMovementPatterns={setMovementPatterns}
           />
         )}
 

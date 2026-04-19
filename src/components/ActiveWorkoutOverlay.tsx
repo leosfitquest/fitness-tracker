@@ -6,6 +6,9 @@ import type { SetPR } from "../utils/PRTracker";
 import type { Workout, WorkoutExercise, ActiveSet, Exercise } from "../types";
 import { useToast } from './Toast';
 import { useGlobalTimer } from '../hooks/GlobalTimerContext';
+import { shouldSuggestRotation, getCycleRotationSuggestion } from '../utils/cycleRotation';
+import { CycleRotationModal } from './CycleRotationModal';
+import type { MovementPattern, CycleRotationSuggestion } from '../types';
 
 interface ActiveWorkoutOverlayProps {
     workout: Workout;
@@ -24,6 +27,7 @@ interface ActiveWorkoutOverlayProps {
     // Actions
     onSetChange: (exerciseId: string, sets: ActiveSet[]) => void; // Wrapped handler
     onRemoveExercise: (id: string) => void;
+    onReplaceExercise: (oldId: string, newExercise: Exercise) => void;
     onMoveExercise: (from: number, to: number) => void;
     onSaveExercise: (exerciseId: string) => void; // Trigger save/PR check
     selectedExerciseId: string | null;
@@ -43,10 +47,13 @@ interface ActiveWorkoutOverlayProps {
     onAddExercise: () => void;
     onOpenSettings: () => void;
 
-    // Superset Actions
     showSupersetOptions?: boolean;
     onToggleSuperset?: (id1: string, id2: string) => void;
     availablePlates?: number[];
+
+    // Cycle Rotation
+    movementPatterns?: MovementPattern[];
+    onUpdateMovementPatterns?: (patterns: MovementPattern[]) => void;
 }
 
 export function ActiveWorkoutOverlay({
@@ -63,6 +70,7 @@ export function ActiveWorkoutOverlay({
     onDiscardWorkout,
     onSetChange,
     onRemoveExercise,
+    onReplaceExercise,
     onMoveExercise,
     onSaveExercise,
     selectedExerciseId,
@@ -78,6 +86,8 @@ export function ActiveWorkoutOverlay({
     showSupersetOptions,
     onToggleSuperset,
     availablePlates,
+    movementPatterns = [],
+    // onUpdateMovementPatterns, // Removed to fix unused warning
 }: ActiveWorkoutOverlayProps) {
     if (!workout) return null;
 
@@ -85,6 +95,7 @@ export function ActiveWorkoutOverlay({
     const [draggedExerciseIndex, setDraggedExerciseIndex] = useState<number | null>(null);
     const { showToast } = useToast();
     const { startRestTimer } = useGlobalTimer();
+    const [rotationSuggestion, setRotationSuggestion] = useState<CycleRotationSuggestion | null>(null);
 
     // Auto-collapse if user navigates away? No, we want persistence.
     // But we default to expanded when a workout starts.
@@ -222,6 +233,24 @@ export function ActiveWorkoutOverlay({
                                         if (pr.isPR) {
                                             newSets[index] = { ...newSets[index], isPR: true, prType: pr.improvement || 'both' };
                                             showToast(`🔥 NEW PR! Set ${s.setNumber}: ${s.weight}kg × ${s.reps} reps`, 'success');
+                                        }
+                                    }
+
+                                    // Check for Cycle Rotation if it's the very first set
+                                    if (index === 0 && selectedExerciseId && movementPatterns.length > 0) {
+                                        if (shouldSuggestRotation(newSets)) {
+                                            const activeExerciseId = workoutExercises.find(e => e.id === selectedExerciseId)?.exerciseId;
+                                            if (activeExerciseId) {
+                                                const pattern = movementPatterns.find(p => p.exerciseIds.includes(activeExerciseId));
+                                                if (pattern) {
+                                                    const suggestion = getCycleRotationSuggestion(activeExerciseId, pattern, allExercises);
+                                                    if (suggestion) {
+                                                        // Update suggestion to hold last known good weight for UI
+                                                        suggestion.lastWeight = newSets[0].weight || suggestion.lastWeight;
+                                                        setRotationSuggestion(suggestion);
+                                                    }
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -368,6 +397,22 @@ export function ActiveWorkoutOverlay({
                     </div>
                 )}
             </div>
+
+            {/* CYCLE ROTATION MODAL */}
+            {rotationSuggestion && (
+                <CycleRotationModal
+                    suggestion={rotationSuggestion}
+                    onAccept={() => {
+                        const newEx = allExercises.find(e => e.id === rotationSuggestion.nextExerciseId);
+                        if (newEx) {
+                            onReplaceExercise(rotationSuggestion.currentExerciseId, newEx);
+                            showToast(`Switched rotation to ${rotationSuggestion.nextExerciseName}`, 'success');
+                        }
+                        setRotationSuggestion(null);
+                    }}
+                    onDecline={() => setRotationSuggestion(null)}
+                />
+            )}
         </div>
     );
 }

@@ -14,6 +14,7 @@ import { getRank, getNextRank } from '../utils/gamification';
 import { useToast } from './Toast';
 import { MeasurementsPage } from './MeasurementsPage';
 import { AnalyticsBoard } from './AnalyticsBoard';
+import { Migrator } from './Migrator';
 
 interface ProfilePageProps {
     userId?: string;
@@ -30,6 +31,7 @@ export function ProfilePage({ userId, onSelectUser }: ProfilePageProps) {
     const [isFollowing, setIsFollowing] = useState(false);
     const [uploadingAvatar, setUploadingAvatar] = useState(false);
     const [activeTab, setActiveTab] = useState<'overview' | 'workouts' | 'ranks' | 'measurements' | 'analytics'>('overview');
+    const [showMigrator, setShowMigrator] = useState(false);
     const { showToast } = useToast();
     const [sessionLogs, setSessionLogs] = useState<any[]>([]);
     const [runSessions, setRunSessions] = useState<RunSession[]>([]);
@@ -324,6 +326,7 @@ export function ProfilePage({ userId, onSelectUser }: ProfilePageProps) {
                                         {isOwnProfile ? (
                                             <div className="flex gap-2 justify-center md:justify-start">
                                                 <button onClick={() => setIsEditing(true)} className="px-4 py-2 border border-border rounded-lg text-sm font-medium hover:bg-secondary">Edit Profile</button>
+                                                <button onClick={() => setShowMigrator(true)} className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-cyan-500 text-black rounded-lg text-sm font-bold shadow-lg shadow-emerald-500/20 hover:scale-[1.02] transition-transform">Migrate Data</button>
                                                 <button onClick={() => supabase.auth.signOut()} className="px-4 py-2 border border-red-900/30 text-red-500 rounded-lg text-sm font-medium hover:bg-red-500/10">Sign Out</button>
                                             </div>
                                         ) : (
@@ -488,6 +491,11 @@ export function ProfilePage({ userId, onSelectUser }: ProfilePageProps) {
                     onClose={() => setShowFollowList(null)}
                     onNavigate={onSelectUser}
                 />
+            )}
+
+            {/* Migrator Modal */}
+            {showMigrator && currentUser && (
+                <Migrator userId={currentUser} onClose={() => setShowMigrator(false)} />
             )}
         </div>
     );

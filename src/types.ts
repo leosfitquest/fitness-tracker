@@ -253,3 +253,39 @@ export type RunSession = {
     runType?: 'easy' | 'tempo' | 'interval' | 'long' | 'sprint' | 'race';
     elevationGain?: number;
 };
+
+// ============= CYCLE ROTATION & MOVEMENT =============
+
+export type CycleHistoryEntry = {
+  exerciseId: string;
+  endWeight: number;
+  date: string;
+};
+
+export type MovementPattern = {
+  id: string;
+  userId: string;
+  name: string;
+  patternType: string;
+  exerciseIds: string[];
+  activeIndex: number;
+  cycleHistory: CycleHistoryEntry[];
+};
+
+export type CycleRotationSuggestion = {
+  patternId: string;
+  patternName: string;
+  currentExerciseId: string;
+  nextExerciseId: string;
+  nextExerciseName: string;
+  lastWeight?: number;
+};
+
+export type DailySteps = {
+  id: string;
+  userId: string;
+  date: string;
+  steps: number;
+  goal: number;
+  source: 'accelerometer' | 'manual' | 'run_estimated';
+};
