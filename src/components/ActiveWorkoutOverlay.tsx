@@ -1,8 +1,6 @@
 import { useState } from 'react';
 import { ActiveWorkoutCard } from './ActiveWorkoutCard';
 import { formatTime } from "../utils/math";
-import { checkSetPR } from "../utils/PRTracker";
-import type { SetPR } from "../utils/PRTracker";
 import type { Workout, WorkoutExercise, ActiveSet, Exercise } from "../types";
 import { useToast } from './Toast';
 import { useGlobalTimer } from '../hooks/GlobalTimerContext';
@@ -41,7 +39,7 @@ interface ActiveWorkoutOverlayProps {
 
     // Data
     allExercises: Exercise[];
-    historicalPRData: SetPR[];
+    // historicalPRData is no longer needed here — PR detection happens in App.tsx
 
     // UI Actions
     onAddExercise: () => void;
@@ -80,14 +78,12 @@ export function ActiveWorkoutOverlay({
     showPlateCalculator,
     isDeload,
     allExercises,
-    historicalPRData,
     onAddExercise,
     onOpenSettings,
     showSupersetOptions,
     onToggleSuperset,
     availablePlates,
     movementPatterns = [],
-    // onUpdateMovementPatterns, // Removed to fix unused warning
 }: ActiveWorkoutOverlayProps) {
     if (!workout) return null;
 
@@ -97,9 +93,7 @@ export function ActiveWorkoutOverlay({
     const { startRestTimer } = useGlobalTimer();
     const [rotationSuggestion, setRotationSuggestion] = useState<CycleRotationSuggestion | null>(null);
 
-    // Auto-collapse if user navigates away? No, we want persistence.
-    // But we default to expanded when a workout starts.
-
+    // Auto-start timer when workout opens
     const handleStart = () => {
         onSetWorkoutStarted(true);
         if (!workoutStartTime) onSetWorkoutStartTime(Date.now());
@@ -225,18 +219,8 @@ export function ActiveWorkoutOverlay({
                                 const newSets = [...activeSets];
                                 newSets[index] = { ...newSets[index], [field]: value };
 
-                                // Check for PR if completed
+                                // Check for Cycle Rotation if completing first set
                                 if (field === 'completed' && value === true) {
-                                    const s = newSets[index];
-                                    if (s.weight && s.reps) {
-                                        const pr = checkSetPR(selectedExerciseId, s.setNumber, s.weight, s.reps, historicalPRData);
-                                        if (pr.isPR) {
-                                            newSets[index] = { ...newSets[index], isPR: true, prType: pr.improvement || 'both' };
-                                            showToast(`🔥 NEW PR! Set ${s.setNumber}: ${s.weight}kg × ${s.reps} reps`, 'success');
-                                        }
-                                    }
-
-                                    // Check for Cycle Rotation if it's the very first set
                                     if (index === 0 && selectedExerciseId && movementPatterns.length > 0) {
                                         if (shouldSuggestRotation(newSets)) {
                                             const activeExerciseId = workoutExercises.find(e => e.id === selectedExerciseId)?.exerciseId;
@@ -245,7 +229,6 @@ export function ActiveWorkoutOverlay({
                                                 if (pattern) {
                                                     const suggestion = getCycleRotationSuggestion(activeExerciseId, pattern, allExercises);
                                                     if (suggestion) {
-                                                        // Update suggestion to hold last known good weight for UI
                                                         suggestion.lastWeight = newSets[0].weight || suggestion.lastWeight;
                                                         setRotationSuggestion(suggestion);
                                                     }
@@ -323,12 +306,13 @@ export function ActiveWorkoutOverlay({
                                     {/* Drag Handle */}
                                     <div className="text-slate-600 cursor-move py-2">⋮⋮</div>
 
-                                    {/* Image */}
-                                    <div className="w-14 h-14 bg-secondary rounded-lg overflow-hidden flex-shrink-0">
+                                    <div className={`w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-slate-800`}>
                                         {ex.imageUrl ? (
                                             <img src={ex.imageUrl} alt="" className="w-full h-full object-cover" />
                                         ) : (
-                                            <div className="w-full h-full flex items-center justify-center text-xs text-muted-foreground">Img</div>
+                                            <div className="w-full h-full flex items-center justify-center text-xs text-slate-500 font-bold uppercase">
+                                                {(ex.muscleGroup || '').slice(0, 2)}
+                                            </div>
                                         )}
                                     </div>
 

@@ -1,9 +1,7 @@
 import { useState, useMemo } from 'react';
-// import { List as ReactWindowList } from 'react-window'; // Removed for stability check
 import type { Exercise } from '../types.ts';
 import { useExercisePreferences } from '../hooks/useExercisePreferences';
 import { CustomExerciseModal } from './CustomExerciseModal';
-import { ExerciseGif } from './ExerciseGif';
 
 
 
@@ -72,43 +70,42 @@ export function ExerciseSearchModal({
 
   return (
     <div
-      className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-black/85 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in"
       onClick={onClose}
     >
       <div
-        className="bg-card border border-border rounded-xl p-6 max-w-2xl w-full h-[80vh] flex flex-col shadow-2xl"
+        className="glass-card rounded-2xl p-5 max-w-2xl w-full h-[85vh] flex flex-col animate-scale-in"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-foreground">Add Exercise</h2>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground text-xl">✕</button>
+          <h2 className="text-lg font-bold text-white">Add Exercise</h2>
+          <button onClick={onClose} className="p-2 text-slate-500 hover:text-white rounded-lg hover:bg-slate-800 transition-colors">✕</button>
         </div>
 
         {/* Search Input */}
-        <div className="mb-4">
+        <div className="mb-3">
           <input
             type="text"
             placeholder="Search exercises..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-lg border border-input bg-background px-4 py-3 text-sm text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+            className="w-full rounded-xl bg-slate-800/60 border border-slate-700 px-4 py-3 text-sm text-white outline-none focus:border-emerald-500/50 placeholder-slate-500"
             autoFocus
           />
         </div>
 
-        {/* Filters */}
-        <div className="flex flex-wrap gap-2 mb-4 pb-2 border-b border-border">
-          <button onClick={() => setActiveFilter('all')} className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${activeFilter === 'all' ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'}`}>All</button>
-          <button onClick={() => setActiveFilter('favorites')} className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${activeFilter === 'favorites' ? 'bg-red-500 text-white' : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'}`}>❤️ Favorites</button>
-          <button onClick={() => setActiveFilter('recent')} className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${activeFilter === 'recent' ? 'bg-blue-500 text-white' : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'}`}>🕒 Recent</button>
-          <button onClick={() => setActiveFilter('custom')} className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${activeFilter === 'custom' ? 'bg-purple-500 text-white' : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'}`}>✨ Custom</button>
-          <div className="w-px h-6 bg-border mx-1" />
+        {/* Filters — scrollable horizontally */}
+        <div className="flex gap-1.5 mb-3 pb-2 overflow-x-auto no-scrollbar border-b border-white/5">
+          <button onClick={() => setActiveFilter('all')} className={`px-3 py-1.5 text-xs font-bold rounded-full transition-all whitespace-nowrap shrink-0 ${activeFilter === 'all' ? 'bg-emerald-500 text-black' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}>All</button>
+          <button onClick={() => setActiveFilter('favorites')} className={`px-3 py-1.5 text-xs font-bold rounded-full transition-all whitespace-nowrap shrink-0 ${activeFilter === 'favorites' ? 'bg-red-500 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}>❤️ Fav</button>
+          <button onClick={() => setActiveFilter('recent')} className={`px-3 py-1.5 text-xs font-bold rounded-full transition-all whitespace-nowrap shrink-0 ${activeFilter === 'recent' ? 'bg-blue-500 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}>🕒 Recent</button>
+          <button onClick={() => setActiveFilter('custom')} className={`px-3 py-1.5 text-xs font-bold rounded-full transition-all whitespace-nowrap shrink-0 ${activeFilter === 'custom' ? 'bg-purple-500 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}>✨ Custom</button>
           {muscleGroups.map((group) => (
             <button
               key={group}
               onClick={() => setActiveFilter(group)}
-              className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${activeFilter === group ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'}`}
+              className={`px-3 py-1.5 text-xs font-bold rounded-full transition-all capitalize whitespace-nowrap shrink-0 ${activeFilter === group ? 'bg-emerald-500 text-black' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
             >
               {group}
             </button>
@@ -116,69 +113,76 @@ export function ExerciseSearchModal({
         </div>
 
         {/* Exercise List */}
-        <div className="flex-1 min-h-0 overflow-y-auto">
+        <div className="flex-1 min-h-0 overflow-y-auto -mx-1">
           {filteredExercises.length > 0 ? (
-            <div className="flex flex-col">
-              {filteredExercises.map((ex) => (
-                <div key={ex.id} className="px-2 py-1" style={{ height: 70 }}>
-                  <div className="flex items-center gap-2 group h-full">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); toggleFavorite(ex.id); }}
-                      className={`p-2 rounded-lg transition-colors ${Array.isArray(favorites) && favorites.includes(ex.id) ? 'text-red-500 hover:bg-red-500/10' : 'text-slate-600 hover:text-red-400 hover:bg-slate-800'}`}
-                    >
-                      {Array.isArray(favorites) && favorites.includes(ex.id) ? '❤️' : '🤍'}
-                    </button>
-                    <button
-                      onClick={() => handleSelect(ex.id)}
-                      className="flex-1 h-full p-2 rounded-lg border border-border bg-card hover:border-primary transition-all text-left flex items-center gap-3"
-                    >
-                      {/* Animated GIF/Image Thumbnail */}
-                      {(ex.images && ex.images.length > 0) ? (
-                        <div className="w-10 h-10 flex-shrink-0 flex items-center justify-center bg-slate-100 rounded-md overflow-hidden">
-                           <ExerciseGif images={ex.images} />
+            <div className="flex flex-col gap-1">
+              {filteredExercises.map((ex) => {
+                const GITHUB_BASE = 'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/';
+                // Use first image frame as STATIC thumbnail only
+                const thumbUrl = (ex.images && ex.images.length > 0)
+                  ? `${GITHUB_BASE}${ex.images[0]}`
+                  : ex.imageUrl;
+
+                return (
+                  <div key={ex.id} className="px-1">
+                    <div className="flex items-center gap-2 group">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); toggleFavorite(ex.id); }}
+                        className={`p-1.5 rounded-lg transition-colors shrink-0 ${Array.isArray(favorites) && favorites.includes(ex.id) ? 'text-red-500' : 'text-slate-700 hover:text-red-400'}`}
+                      >
+                        {Array.isArray(favorites) && favorites.includes(ex.id) ? '❤️' : '🤍'}
+                      </button>
+                      <button
+                        onClick={() => handleSelect(ex.id)}
+                        className="flex-1 p-2 rounded-xl bg-slate-800/30 border border-white/5 hover:border-emerald-500/30 hover:bg-slate-800/50 transition-all text-left flex items-center gap-3 press-effect"
+                      >
+                        {/* Static thumbnail ONLY — no animation in list */}
+                        <div className="w-11 h-11 rounded-lg overflow-hidden flex-shrink-0 bg-white">
+                          {thumbUrl ? (
+                            <img
+                              src={thumbUrl}
+                              alt=""
+                              className="w-full h-full object-contain"
+                              loading="lazy"
+                            />
+                          ) : (
+                            <div className="w-full h-full bg-slate-800 flex items-center justify-center text-slate-500 text-[10px] font-bold uppercase">
+                              {ex.muscleGroup.slice(0, 3)}
+                            </div>
+                          )}
                         </div>
-                      ) : ex.imageUrl ? (
-                        <img
-                          src={ex.imageUrl}
-                          alt={ex.name}
-                          className="w-10 h-10 object-cover rounded-md bg-secondary flex-shrink-0"
-                        />
-                      ) : (
-                        <div className="w-10 h-10 rounded-md bg-slate-800 flex-shrink-0 flex items-center justify-center text-slate-600 text-xs font-bold">
-                          {ex.muscleGroup.slice(0, 2).toUpperCase()}
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-white text-sm truncate group-hover:text-emerald-400 transition-colors">
+                            {ex.name}
+                          </h3>
+                          <p className="text-[11px] text-slate-500 uppercase">
+                            {ex.muscleGroup} {ex.equipment ? `· ${ex.equipment}` : ''}
+                          </p>
                         </div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-bold text-foreground group-hover:text-primary truncate">
-                          {ex.name}
-                        </h3>
-                        <p className="text-xs text-muted-foreground uppercase">
-                          {ex.muscleGroup}
-                        </p>
-                      </div>
-                    </button>
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
-            <div className="h-full flex flex-col items-center justify-center text-muted-foreground opacity-50">
+            <div className="h-full flex flex-col items-center justify-center text-slate-600">
               <span className="text-4xl mb-2">🔍</span>
-              <p>No exercises found</p>
+              <p className="text-sm">No exercises found</p>
             </div>
           )}
         </div>
 
-        <div className="flex items-center justify-between mt-4">
-          <div className="text-xs text-muted-foreground">
-            {filteredExercises.length} exercise{filteredExercises.length !== 1 ? 's' : ''} found
+        <div className="flex items-center justify-between mt-3 pt-3 border-t border-white/5">
+          <div className="text-xs text-slate-500">
+            {filteredExercises.length} exercise{filteredExercises.length !== 1 ? 's' : ''}
           </div>
           {onCreateCustomExercise && (
             <button 
               onClick={() => setShowCreateModal(true)}
-              className="text-xs font-bold text-primary hover:text-primary/80"
+              className="text-xs font-bold text-emerald-400 hover:text-emerald-300 press-effect"
             >
-              + Create Custom Exercise
+              + Create Custom
             </button>
           )}
         </div>

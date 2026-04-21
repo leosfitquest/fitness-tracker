@@ -439,7 +439,8 @@ function App() {
 
     const workoutToStart = { ...workout, exercises };
     startWorkout(workoutToStart);
-    setWorkoutStarted(false); // Override to allow preview
+    setWorkoutStarted(true);  // Auto-start timer
+    setWorkoutStartTime(Date.now());
     setMode("active");
     setShowSummary(false);
     setCurrentPage('dashboard');
@@ -961,7 +962,6 @@ function App() {
             selectedExerciseId={selectedExerciseId}
             isDeload={isDeload}
             allExercises={allAppExercises}
-            historicalPRData={historicalPRData}
             onSelectExercise={handleSelectExercise}
             onAddExercise={() => setShowExerciseSearchModal(true)}
             showRPE={showRPE}

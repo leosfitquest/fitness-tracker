@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { SetEntryRow } from './SetEntryRow';
 import { ExerciseInstructionsModal } from './ExerciseInstructionsModal';
-import type { ActiveSet, Exercise } from '../types.ts';
+import { ExerciseGif } from './ExerciseGif';
+import type { ActiveSet, Exercise, MuscleGroup } from '../types.ts';
 
 interface ActiveWorkoutCardProps {
   exerciseId: string;
@@ -66,30 +67,44 @@ export function ActiveWorkoutCard({
 
   return (
     <>
-      <div className="bg-card border-2 border-border rounded-2xl overflow-hidden shadow-2xl">
-        {/* Header mit großem Bild */}
-        <div className="relative h-32 bg-secondary overflow-hidden">
-          {currentExercise?.imageUrl && (
+      <div className="glass-card rounded-2xl overflow-hidden shadow-2xl border border-white/10">
+        {/* Header with animated exercise GIF */}
+        <div className="relative h-40 bg-slate-900 overflow-hidden">
+          {currentExercise?.images && currentExercise.images.length > 0 ? (
+            <>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <ExerciseGif
+                  images={currentExercise.images}
+                  muscleGroup={muscleGroup as MuscleGroup}
+                  size="lg"
+                  className="w-full h-full"
+                />
+              </div>
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/60 to-transparent" />
+            </>
+          ) : currentExercise?.imageUrl ? (
             <>
               <img
                 src={currentExercise.imageUrl}
                 alt={exerciseName}
-                className="absolute inset-0 w-full h-full object-cover opacity-30 mix-blend-overlay"
+                className="absolute inset-0 w-full h-full object-cover opacity-30"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-background via-background/50 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/60 to-transparent" />
             </>
+          ) : (
+            <div className="absolute inset-0 bg-gradient-to-br from-emerald-950/30 to-slate-900" />
           )}
 
           {/* Exercise Info Overlay */}
           <div className="relative h-full flex items-end p-4">
-            <div className="flex-1">
-              <h2 className="text-2xl font-bold text-card-foreground mb-1">{exerciseName}</h2>
+            <div className="flex-1 min-w-0">
+              <h2 className="text-xl font-bold text-white mb-1 truncate">{exerciseName}</h2>
               <div className="flex items-center gap-2">
-                <span className="px-2 py-0.5 bg-secondary border border-border text-foreground rounded-full text-xs font-bold uppercase">
+                <span className="px-2 py-0.5 bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 rounded-full text-xs font-bold uppercase">
                   {muscleGroup}
                 </span>
                 {isDeload && (
-                  <span className="px-2 py-0.5 bg-amber-500/20 border border-amber-500/50 text-amber-500 rounded-full text-xs font-bold">
+                  <span className="px-2 py-0.5 bg-amber-500/20 border border-amber-500/50 text-amber-400 rounded-full text-xs font-bold">
                     DELOAD
                   </span>
                 )}
@@ -97,24 +112,21 @@ export function ActiveWorkoutCard({
             </div>
 
             <div className="flex gap-2">
-              {/* History Button */}
               {onOpenHistory && (
                 <button
                   onClick={onOpenHistory}
-                  className="p-3 bg-secondary/80 hover:bg-secondary backdrop-blur-sm rounded-xl text-primary transition-all hover:scale-105"
+                  className="p-2.5 bg-black/40 hover:bg-black/60 backdrop-blur-sm rounded-xl text-white transition-all press-effect"
                   title="View History"
                 >
-                  <span className="text-lg">📊</span>
+                  <span className="text-sm">📊</span>
                 </button>
               )}
-
-              {/* Info Button */}
               <button
                 onClick={() => setShowInstructions(true)}
-                className="p-3 bg-secondary/80 hover:bg-secondary backdrop-blur-sm rounded-xl text-primary transition-all hover:scale-105"
+                className="p-2.5 bg-black/40 hover:bg-black/60 backdrop-blur-sm rounded-xl text-white transition-all press-effect"
                 title="Instructions"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </button>
@@ -144,7 +156,7 @@ export function ActiveWorkoutCard({
         <div className="p-4 space-y-2">
           {/* Column Headers */}
           <div
-            className="grid gap-2 px-2 pb-2 text-xs font-bold text-muted-foreground uppercase"
+            className="grid gap-2 px-2 pb-2 text-xs font-bold text-slate-500 uppercase"
             style={{ gridTemplateColumns: showRPE ? '40px 1fr 1fr 50px 40px' : '40px 1fr 1fr 40px' }}
           >
             <div className="text-center">Set</div>
@@ -175,9 +187,11 @@ export function ActiveWorkoutCard({
               onRepsChange={(reps) => onSetChange(index, 'reps', reps)}
               onRPEChange={(rpe) => onSetChange(index, 'rpe', rpe)}
               onCompletedChange={(completed) => {
-                onSetChange(index, 'completed', completed);
                 if (completed && set.weight && set.reps) {
+                  // Only trigger once — handleCompleteSet calls onSetChange internally
                   handleCompleteSet(index);
+                } else {
+                  onSetChange(index, 'completed', completed);
                 }
               }}
               showRPE={showRPE}
@@ -191,7 +205,7 @@ export function ActiveWorkoutCard({
           {/* Add Set Button */}
           <button
             onClick={onAddSet}
-            className="w-full py-3 mt-2 rounded-lg border-2 border-dashed border-border hover:border-primary text-muted-foreground hover:text-primary font-medium transition-all hover:bg-secondary/50"
+            className="w-full py-3 mt-2 rounded-xl border-2 border-dashed border-slate-700 hover:border-emerald-500/50 text-slate-500 hover:text-emerald-400 font-medium transition-all hover:bg-emerald-950/10 press-effect"
           >
             + Add Set
           </button>
@@ -226,20 +240,20 @@ export function ActiveWorkoutCard({
         </div>
 
         {/* Stats Footer */}
-        <div className="px-4 py-3 bg-secondary/30 border-t border-border flex justify-between text-sm">
+        <div className="px-4 py-3 bg-slate-800/30 border-t border-white/5 flex justify-between text-sm">
           <div>
-            <span className="text-muted-foreground">Total Volume:</span>
-            <span className="ml-2 text-primary font-bold">
+            <span className="text-slate-500">Volume:</span>
+            <span className="ml-1.5 text-emerald-400 font-bold">
               {sets.reduce((sum, set) =>
                 set.completed && set.weight && set.reps && set.setType !== 'warmup'
                   ? sum + (set.weight * set.reps)
                   : sum, 0
-              )}kg
+              ).toLocaleString()} kg
             </span>
           </div>
           <div>
-            <span className="text-muted-foreground">Completed:</span>
-            <span className="ml-2 text-foreground font-bold">
+            <span className="text-slate-500">Sets:</span>
+            <span className="ml-1.5 text-white font-bold">
               {sets.filter(s => s.completed).length}/{sets.length}
             </span>
           </div>
