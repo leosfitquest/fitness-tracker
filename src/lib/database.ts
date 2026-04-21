@@ -1,6 +1,29 @@
 import { supabase } from './supabase'
-import type { Workout, WorkoutSessionLog, ExerciseRecord, WorkoutExercise, RunSession } from '../types.ts';
+import type { Workout, WorkoutSessionLog, ExerciseRecord, WorkoutExercise, RunSession, ExerciseSessionData, ActiveSet } from '../types.ts';
 import { calculateSessionXP, calculateNewStreak, calculateLevel } from '../utils/gamification';
+import { queueMutation, isOnline, setCacheItem, getCacheItem } from './offlineStore';
+
+// ============= OFFLINE HELPER =============
+
+/** Try a Supabase operation. If offline/fails, queue the mutation and return null. */
+async function tryOrQueue<T>(
+  operation: () => Promise<T>,
+  fallbackQueue?: { table: string; operation: 'insert' | 'update' | 'upsert' | 'delete'; data: any; userId?: string }
+): Promise<T | null> {
+  try {
+    return await operation();
+  } catch (err: any) {
+    // Network error or fetch failure = offline
+    if (!isOnline() || err?.message?.includes('fetch') || err?.message?.includes('network') || err?.code === 'PGRST000') {
+      if (fallbackQueue) {
+        await queueMutation(fallbackQueue);
+        console.info('[Offline] Queued mutation for', fallbackQueue.table);
+      }
+      return null;
+    }
+    throw err; // Real DB error, re-throw
+  }
+}
 
 // ============= WORKOUTS =============
 
@@ -11,9 +34,16 @@ export async function loadWorkouts(userId: string): Promise<Workout[]> {
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
 
-  if (error) throw error;
+  if (error) {
+    // Try cache if offline
+    if (!isOnline()) {
+      const cached = await getCacheItem<Workout[]>(`workouts-${userId}`);
+      return cached || [];
+    }
+    throw error;
+  }
 
-  return (data || []).map((w: any) => ({
+  const workouts = (data || []).map((w: any) => ({
     id: w.id,
     userId: w.user_id,
     name: w.name,
@@ -23,6 +53,10 @@ export async function loadWorkouts(userId: string): Promise<Workout[]> {
     lastPerformed: w.last_performed,
     exercises: normalizeWorkoutExercises(w.exercises)
   }));
+
+  // Cache for offline use
+  await setCacheItem(`workouts-${userId}`, workouts).catch(() => {});
+  return workouts;
 }
 
 /** Safely normalize exercises from DB — handles both old Exercise[] and new WorkoutExercise[] shapes */
@@ -73,18 +107,33 @@ export async function saveWorkout(workout: Omit<Workout, 'id' | 'exerciseCount' 
 }
 
 export async function updateWorkout(workoutId: string, updates: Partial<Workout>): Promise<Workout> {
+  // Build clean payload for Supabase (snake_case)
+  const payload: any = { updated_at: new Date().toISOString() };
+  if (updates.name !== undefined) payload.name = updates.name;
+  if (updates.description !== undefined) payload.description = updates.description;
+  if (updates.exercises !== undefined) payload.exercises = updates.exercises;
+  if (updates.exerciseCount !== undefined) payload.exercise_count = updates.exerciseCount;
+  if (updates.lastPerformed !== undefined) payload.last_performed = updates.lastPerformed;
+  if (updates.estimatedDuration !== undefined) payload.estimated_duration = updates.estimatedDuration;
+
   const { data, error } = await supabase
     .from('workouts')
-    .update({
-      ...updates,
-      updated_at: new Date().toISOString()
-    })
+    .update(payload)
     .eq('id', workoutId)
     .select()
     .single()
 
   if (error) throw error
-  return data
+  return {
+    id: data.id,
+    userId: data.user_id,
+    name: data.name,
+    description: data.description,
+    exerciseCount: data.exercise_count,
+    estimatedDuration: data.estimated_duration,
+    lastPerformed: data.last_performed,
+    exercises: normalizeWorkoutExercises(data.exercises),
+  };
 }
 
 export async function deleteWorkout(workoutId: string): Promise<void> {
@@ -98,7 +147,53 @@ export async function deleteWorkout(workoutId: string): Promise<void> {
 
 // ============= SESSIONS =============
 
+/** Normalize exercise session data for clean DB storage */
+function normalizeExercisesForStorage(exercises: ExerciseSessionData[]): any[] {
+  return exercises.map(ex => ({
+    exerciseId: ex.exerciseId,
+    name: ex.name,
+    muscleGroup: ex.muscleGroup,
+    note: ex.note || '',
+    volume: ex.volume || 0,
+    sets: (ex.sets || []).map((s: ActiveSet) => ({
+      setNumber: s.setNumber,
+      weight: s.weight ?? null,
+      reps: s.reps ?? null,
+      rpe: s.rpe ?? null,
+      completed: s.completed ?? false,
+      setType: s.setType || 'normal',
+      isPR: s.isPR || false,
+      prType: s.prType || 'none',
+    })),
+  }));
+}
+
+/** Reconstruct ExerciseSessionData from stored JSONB */
+function deserializeExercises(raw: any[]): ExerciseSessionData[] {
+  if (!raw || !Array.isArray(raw)) return [];
+  return raw.map((ex: any) => ({
+    exerciseId: ex.exerciseId || ex.exercise_id || '',
+    name: ex.name || 'Unknown',
+    muscleGroup: ex.muscleGroup || ex.muscle_group || 'core',
+    note: ex.note || ex.notes || '',
+    volume: ex.volume ?? 0,
+    sets: (ex.sets || []).map((s: any, i: number) => ({
+      setNumber: s.setNumber ?? s.set_number ?? (i + 1),
+      weight: s.weight ?? null,
+      reps: s.reps ?? null,
+      rpe: s.rpe ?? null,
+      completed: s.completed ?? false,
+      setType: s.setType ?? s.set_type ?? 'normal',
+      isPR: s.isPR ?? s.is_pr ?? false,
+      prType: s.prType ?? s.pr_type ?? 'none',
+    })),
+  }));
+}
+
 export async function saveSessionLog(log: WorkoutSessionLog, userId: string): Promise<WorkoutSessionLog> {
+  // Normalize exercises for clean storage
+  const normalizedExercises = normalizeExercisesForStorage(log.exercises);
+
   const sessionData: any = {
     user_id: userId,
     workout_id: log.workoutId,
@@ -110,19 +205,24 @@ export async function saveSessionLog(log: WorkoutSessionLog, userId: string): Pr
     total_sets: log.totalSetsCompleted,
     is_deload: log.isDeload,
     notes: log.notes,
-    exercises: log.exercises
+    exercises: normalizedExercises,
   };
 
   if (log.durationSeconds) sessionData.duration_seconds = log.durationSeconds;
-  if (log.newPRs) sessionData.new_prs = log.newPRs;
+  if (log.newPRs && log.newPRs.length > 0) sessionData.new_prs = log.newPRs;
 
-  const { data, error } = await supabase
-    .from('workout_sessions')
-    .insert(sessionData)
-    .select()
-    .single()
-
-  if (error) throw error
+  const result = await tryOrQueue(
+    async () => {
+      const { data, error } = await supabase
+        .from('workout_sessions')
+        .insert(sessionData)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    { table: 'workout_sessions', operation: 'insert', data: sessionData, userId }
+  );
 
   // --- Gamification Logic ---
   try {
@@ -171,7 +271,16 @@ export async function saveSessionLog(log: WorkoutSessionLog, userId: string): Pr
     console.error("Failed to update gamification stats:", err);
   }
 
-  return data
+  // Return reconstructed log
+  if (result) {
+    return {
+      ...log,
+      id: result.id,
+    };
+  }
+
+  // Offline: return with local ID
+  return { ...log, id: log.id || crypto.randomUUID() };
 }
 
 export async function loadSessionLogs(userId: string): Promise<WorkoutSessionLog[]> {
@@ -182,9 +291,15 @@ export async function loadSessionLogs(userId: string): Promise<WorkoutSessionLog
     .order('started_at', { ascending: false })
     .limit(50)
 
-  if (error) throw error;
+  if (error) {
+    if (!isOnline()) {
+      const cached = await getCacheItem<WorkoutSessionLog[]>(`sessions-${userId}`);
+      return cached || [];
+    }
+    throw error;
+  }
 
-  return (data || []).map((l: any) => ({
+  const sessions = (data || []).map((l: any) => ({
     id: l.id,
     workoutId: l.workout_id,
     workoutName: l.workout_name,
@@ -196,32 +311,42 @@ export async function loadSessionLogs(userId: string): Promise<WorkoutSessionLog
     totalSetsCompleted: l.total_sets,
     isDeload: l.is_deload,
     notes: l.notes,
-    exercises: l.exercises || [],
+    exercises: deserializeExercises(l.exercises),
     newPRs: l.new_prs || []
   }));
+
+  // Cache for offline
+  await setCacheItem(`sessions-${userId}`, sessions).catch(() => {});
+  return sessions;
 }
 
 // ============= EXERCISE RECORDS =============
 
 export async function upsertExerciseRecord(record: ExerciseRecord, userId: string): Promise<ExerciseRecord> {
-  const { data, error } = await supabase
-    .from('exercise_records')
-    .upsert({
-      user_id: userId,
-      exercise_id: record.exerciseId,
-      exercise_name: record.exerciseName,
-      best_volume: record.bestVolume,
-      best_set: record.bestSet,
-      estimated_1rm: record.estimated1RM,
-      updated_at: new Date().toISOString()
-    }, {
-      onConflict: 'user_id,exercise_id'
-    })
-    .select()
-    .single()
+  const payload = {
+    user_id: userId,
+    exercise_id: record.exerciseId,
+    exercise_name: record.exerciseName,
+    best_volume: record.bestVolume,
+    best_set: record.bestSet,
+    estimated_1rm: record.estimated1RM,
+    updated_at: new Date().toISOString()
+  };
 
-  if (error) throw error
-  return data
+  const result = await tryOrQueue(
+    async () => {
+      const { data, error } = await supabase
+        .from('exercise_records')
+        .upsert(payload, { onConflict: 'user_id,exercise_id' })
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    { table: 'exercise_records', operation: 'upsert', data: payload, userId }
+  );
+
+  return result || record;
 }
 
 export async function loadExerciseRecords(userId: string): Promise<Record<string, ExerciseRecord>> {
@@ -230,7 +355,13 @@ export async function loadExerciseRecords(userId: string): Promise<Record<string
     .select('*')
     .eq('user_id', userId)
 
-  if (error) throw error;
+  if (error) {
+    if (!isOnline()) {
+      const cached = await getCacheItem<Record<string, ExerciseRecord>>(`records-${userId}`);
+      return cached || {};
+    }
+    throw error;
+  }
 
   const recordsMap: Record<string, ExerciseRecord> = {};
   (data || []).forEach((r: any) => {
@@ -242,6 +373,8 @@ export async function loadExerciseRecords(userId: string): Promise<Record<string
       estimated1RM: Number(r.estimated_1rm)
     };
   });
+
+  await setCacheItem(`records-${userId}`, recordsMap).catch(() => {});
   return recordsMap;
 }
 
@@ -256,7 +389,16 @@ export async function getProfile(userId: string): Promise<import('../types.ts').
     .eq('id', userId)
     .single();
 
-  if (error && error.code !== 'PGRST116') throw error; // PGRST116 is "Row not found"
+  if (error && error.code !== 'PGRST116') {
+    if (!isOnline()) {
+      return getCacheItem<import('../types.ts').UserProfile>(`profile-${userId}`);
+    }
+    throw error;
+  }
+
+  if (data) {
+    await setCacheItem(`profile-${userId}`, data).catch(() => {});
+  }
   return data || null;
 }
 
@@ -390,9 +532,6 @@ export async function getFollowing(userId: string): Promise<import('../types.ts'
 // --- Feed & Interaction ---
 
 export async function shareSessionToFeed(sessionId: string): Promise<void> {
-  // In this simple implementation, acts of saving are enough, but we might toggle a "public" flag
-  // For now, let's assume all saved sessions are potentially feed items if user is public.
-  // We could add a 'shared_at' timestamp to the session log if we want explicit sharing.
   const { error } = await supabase
     .from('workout_sessions')
     .update({ is_shared: true }) // SQL uses is_shared
@@ -411,7 +550,7 @@ export async function getUserFeed(userId: string, limit = 20, offset = 0): Promi
 
   return (data || []).map((s: any) => ({
     id: s.session_id,
-    workoutId: s.workout_name, // RPC returns workout_name as string, might not have ID? SQL says workout_name.
+    workoutId: s.workout_name,
     workoutName: s.workout_name,
     startedAt: s.started_at,
     endedAt: s.ended_at,
@@ -419,7 +558,7 @@ export async function getUserFeed(userId: string, limit = 20, offset = 0): Promi
     totalVolume: s.total_volume,
     totalSetsCompleted: s.total_sets,
     isDeload: s.is_deload,
-    exercises: s.exercises,
+    exercises: deserializeExercises(s.exercises),
     newPRs: s.new_prs,
 
     // Social
@@ -606,4 +745,44 @@ function mapRunSession(r: any): RunSession {
     runType: r.run_type,
     elevationGain: r.elevation_gain ? Number(r.elevation_gain) : undefined,
   };
+}
+
+// ============= FRIENDS DAILY STEPS (for leaderboard) =============
+
+export async function getFriendsDailySteps(userId: string, date: string): Promise<{ userId: string; username: string; avatarUrl?: string; steps: number }[]> {
+  // Get following IDs
+  const { data: follows } = await supabase
+    .from('user_follows')
+    .select('following_id')
+    .eq('follower_id', userId);
+
+  if (!follows || follows.length === 0) return [];
+
+  const ids = follows.map(f => f.following_id);
+
+  // Get their steps for today
+  const { data: stepsData } = await supabase
+    .from('daily_steps')
+    .select('user_id, steps')
+    .in('user_id', ids)
+    .eq('date', date);
+
+  // Get their profiles
+  const { data: profiles } = await supabase
+    .from('user_profiles')
+    .select('id, username, avatar_url')
+    .in('id', ids);
+
+  const profileMap = new Map((profiles || []).map(p => [p.id, p]));
+  const stepsMap = new Map((stepsData || []).map(s => [s.user_id, s.steps]));
+
+  return ids.map(id => {
+    const profile = profileMap.get(id);
+    return {
+      userId: id,
+      username: profile?.username || 'Unknown',
+      avatarUrl: profile?.avatar_url,
+      steps: stepsMap.get(id) || 0,
+    };
+  });
 }

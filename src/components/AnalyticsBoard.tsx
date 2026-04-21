@@ -4,9 +4,10 @@ import type { WorkoutSessionLog } from '../types.ts';
 
 interface AnalyticsBoardProps {
   sessionLogs: WorkoutSessionLog[];
+  onSelectSession?: (log: WorkoutSessionLog) => void;
 }
 
-export function AnalyticsBoard({ sessionLogs }: AnalyticsBoardProps) {
+export function AnalyticsBoard({ sessionLogs, onSelectSession }: AnalyticsBoardProps) {
   const [timeframe, setTimeframe] = useState<'30' | '90' | 'all'>('30');
 
   // Filter logs by timeframe
@@ -131,6 +132,34 @@ export function AnalyticsBoard({ sessionLogs }: AnalyticsBoardProps) {
               ))}
             </div>
           </div>
+        </div>
+        {/* Session History List */}
+        <div className="bg-card border border-border rounded-xl p-4 shadow-sm mt-6">
+          <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-wide mb-4">Recent Sessions</h2>
+          {filteredLogs.length === 0 ? (
+            <div className="text-center py-4 text-muted-foreground text-sm">No sessions in this timeframe.</div>
+          ) : (
+            <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
+              {filteredLogs.slice(0, 20).map(log => (
+                <button
+                  key={log.id}
+                  onClick={() => onSelectSession?.(log)}
+                  className="w-full bg-secondary/30 hover:bg-secondary border border-border rounded-lg p-3 transition-colors text-left flex items-center justify-between"
+                >
+                  <div className="flex-1 min-w-0 pr-4">
+                    <h3 className="font-bold text-foreground truncate">{log.workoutName}</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {new Date(log.startedAt).toLocaleDateString()} • {log.totalSetsCompleted} sets
+                    </p>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <div className="text-primary font-bold">{log.totalVolume.toLocaleString()} kg</div>
+                    {log.durationMinutes && <div className="text-xs text-muted-foreground">{log.durationMinutes} min</div>}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -2,12 +2,14 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useFeed } from '../hooks/useFeed';
 import { FeedItem } from './FeedItem';
+import type { FeedItem as FeedItemType } from '../types.ts';
 
 interface FeedPageProps {
     onNavigate: (page: string) => void;
+    onSelectSession?: (session: FeedItemType) => void;
 }
 
-export function FeedPage({ onNavigate }: FeedPageProps) {
+export function FeedPage({ onNavigate, onSelectSession }: FeedPageProps) {
     const { feed, loading, error, refreshFeed } = useFeed();
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
@@ -63,7 +65,7 @@ export function FeedPage({ onNavigate }: FeedPageProps) {
             ) : (
                 <div className="space-y-4">
                     {currentUserId && feed.map(item => (
-                        <FeedItem key={item.id} item={item} currentUserId={currentUserId} />
+                        <FeedItem key={item.id} item={item} currentUserId={currentUserId} onClick={() => onSelectSession?.(item)} />
                     ))}
                 </div>
             )}

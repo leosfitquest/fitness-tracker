@@ -17,6 +17,7 @@ export type Exercise = {
     equipment?: string | null;
     primaryMuscles?: string[];
     secondaryMuscles?: string[];
+    images?: string[];
 };
 
 // WorkoutExercise: entries inside a Workout (supports superset metadata)

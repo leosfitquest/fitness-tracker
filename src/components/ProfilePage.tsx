@@ -19,9 +19,11 @@ import { Migrator } from './Migrator';
 interface ProfilePageProps {
     userId?: string;
     onSelectUser?: (userId: string) => void;
+    onSelectSession?: (log: any) => void;
+    onNavigate?: (page: string) => void;
 }
 
-export function ProfilePage({ userId, onSelectUser }: ProfilePageProps) {
+export function ProfilePage({ userId, onSelectUser, onSelectSession, onNavigate }: ProfilePageProps) {
     const [profile, setProfile] = useState<UserProfile | null>(null);
     const [workouts, setWorkouts] = useState<Workout[]>([]);
     const [exerciseRecords, setExerciseRecords] = useState<Record<string, ExerciseRecord>>({});
@@ -479,9 +481,17 @@ export function ProfilePage({ userId, onSelectUser }: ProfilePageProps) {
                     <MeasurementsPage />
                 )}
                 {activeTab === 'analytics' && currentUser === profile.id && (
-                    <AnalyticsBoard sessionLogs={sessionLogs} />
+                    <AnalyticsBoard sessionLogs={sessionLogs} onSelectSession={onSelectSession} />
                 )}
             </div>
+
+            {currentUser === profile.id && (
+                <div className="mt-8 text-center pb-20">
+                     <button onClick={() => onNavigate?.('privacy')} className="text-xs text-slate-500 hover:text-slate-300 underline underline-offset-4 transition-colors">
+                        Privacy Policy
+                     </button>
+                </div>
+            )}
 
             {/* Follow List Modal */}
             {showFollowList && (

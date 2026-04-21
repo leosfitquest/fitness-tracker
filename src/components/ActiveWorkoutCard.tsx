@@ -25,6 +25,7 @@ interface ActiveWorkoutCardProps {
   showPlateCalculator: boolean;
   availablePlates?: number[];
   allExercises: Exercise[];
+  historicalPRData?: import('../utils/PRTracker').SetPR[];
 }
 
 export function ActiveWorkoutCard({
@@ -45,8 +46,8 @@ export function ActiveWorkoutCard({
   availablePlates,
   allExercises,
   isSupersetWith,
-  // supersetGroup,
   onToggleSuperset,
+  historicalPRData,
 }: ActiveWorkoutCardProps) {
   const [showInstructions, setShowInstructions] = useState(false);
   const [showNoteInput, setShowNoteInput] = useState(false);
@@ -153,16 +154,20 @@ export function ActiveWorkoutCard({
             <div className="text-center">✓</div>
           </div>
 
-          {sets.map((set, index) => (
-            <SetEntryRow
-              key={index}
-              setNumber={set.setNumber}
-              weight={set.weight ?? undefined}
-              reps={set.reps ?? undefined}
-              rpe={set.rpe ?? undefined}
-              completed={set.completed}
-              isPR={set.isPR}
-              prType={set.prType}
+          {sets.map((set, index) => {
+            const previousSetInfo = historicalPRData?.find(s => s.exerciseId === exerciseId && s.setNumber === set.setNumber);
+            return (
+              <SetEntryRow
+                key={index}
+                setNumber={set.setNumber}
+                weight={set.weight ?? undefined}
+                reps={set.reps ?? undefined}
+                previousWeight={previousSetInfo?.weight}
+                previousReps={previousSetInfo?.reps}
+                rpe={set.rpe ?? undefined}
+                completed={set.completed}
+                isPR={set.isPR}
+                prType={set.prType}
               previousBest={undefined}
               setType={set.setType}
               onSetTypeChange={(type) => onSetChange(index, 'setType', type)}
@@ -180,7 +185,8 @@ export function ActiveWorkoutCard({
               showPlateCalculator={showPlateCalculator}
               availablePlates={availablePlates}
             />
-          ))}
+          );
+        })}
 
           {/* Add Set Button */}
           <button

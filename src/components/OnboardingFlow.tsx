@@ -7,7 +7,7 @@ interface OnboardingFlowProps {
   onComplete: () => void;
 }
 
-type OnboardingStep = 'body' | 'preferences' | 'goals';
+type OnboardingStep = 'body' | 'preferences' | 'goals' | 'pwa';
 
 export function OnboardingFlow({ userId, onComplete }: OnboardingFlowProps) {
   const [step, setStep] = useState<OnboardingStep>('body');
@@ -69,6 +69,7 @@ export function OnboardingFlow({ userId, onComplete }: OnboardingFlowProps) {
     { id: 'body', title: 'Body Stats', subtitle: 'This personalizes your strength rankings' },
     { id: 'preferences', title: 'Training Style', subtitle: 'Help us customize your experience' },
     { id: 'goals', title: 'Your Goals', subtitle: 'What are you training for?' },
+    { id: 'pwa', title: 'Install App', subtitle: 'Get the native app experience' }
   ];
 
   const currentStepIndex = steps.findIndex(s => s.id === step);
@@ -109,7 +110,7 @@ export function OnboardingFlow({ userId, onComplete }: OnboardingFlowProps) {
         {/* Header */}
         <div className="mb-8">
           <div className="text-3xl mb-2">
-            {step === 'body' ? '💪' : step === 'preferences' ? '⚙️' : '🎯'}
+            {step === 'body' ? '💪' : step === 'preferences' ? '⚙️' : step === 'goals' ? '🎯' : '📱'}
           </div>
           <h2 className="text-2xl font-bold text-white">{currentStepInfo.title}</h2>
           <p className="text-slate-400 text-sm mt-1">{currentStepInfo.subtitle}</p>
@@ -323,6 +324,37 @@ export function OnboardingFlow({ userId, onComplete }: OnboardingFlowProps) {
                 </div>
               </div>
             </>
+          )}
+
+          {step === 'pwa' && (
+            <div className="text-center">
+              <div className="w-20 h-20 bg-emerald-500/10 rounded-2xl mx-auto flex items-center justify-center mb-6">
+                <img src="/icon-192.png" alt="App Icon" className="w-12 h-12" />
+              </div>
+              <p className="text-slate-300 text-sm mb-6">
+                FitQuest works best as an installed app. You get fullscreen mode, offline support, and faster loading!
+              </p>
+              
+              <div className="bg-slate-800 rounded-xl p-4 text-left mb-4 border border-slate-700">
+                <div className="font-bold text-white flex items-center gap-2 mb-2">
+                  <span className="text-xl">🍎</span> iOS (Safari)
+                </div>
+                <div className="text-sm text-slate-300">
+                  1. Tap the Share button at the bottom<br/>
+                  2. Scroll down and tap <span className="font-bold text-white">Add to Home Screen</span>
+                </div>
+              </div>
+
+              <div className="bg-slate-800 rounded-xl p-4 text-left border border-slate-700">
+                <div className="font-bold text-white flex items-center gap-2 mb-2">
+                  <span className="text-xl">🤖</span> Android (Chrome)
+                </div>
+                <div className="text-sm text-slate-300">
+                  1. Tap the Menu <span className="text-white font-bold">⋮</span> symbol<br/>
+                  2. Tap <span className="font-bold text-white">Install app</span> or Add to Home screen
+                </div>
+              </div>
+            </div>
           )}
         </div>
 

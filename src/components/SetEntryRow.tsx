@@ -143,16 +143,8 @@ export function SetEntryRow({
           </button>
           
           {isPR && completed && (
-            <div
-              className={`text-[10px] font-bold px-1 rounded mt-0.5 ${prType === 'both' ? 'bg-yellow-500 text-black' :
-                prType === 'weight' ? 'bg-blue-500 text-white' :
-                  prType === 'reps' ? 'bg-green-500 text-white' :
-                    'bg-slate-600 text-white'
-                }`}
-            >
-              {prType === 'both' ? '🔥PR' :
-                prType === 'weight' ? '💪' :
-                  prType === 'reps' ? '🔁' : 'PR'}
+            <div className="absolute -left-2 top-0 text-yellow-500 text-sm drop-shadow-md z-10" title="Personal Record!">
+              🏆
             </div>
           )}
         </div>

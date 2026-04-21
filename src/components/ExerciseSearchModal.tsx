@@ -3,7 +3,7 @@ import { useState, useMemo } from 'react';
 import type { Exercise } from '../types.ts';
 import { useExercisePreferences } from '../hooks/useExercisePreferences';
 import { CustomExerciseModal } from './CustomExerciseModal';
-import { MuscleHeatmap } from './MuscleHeatmap';
+import { ExerciseGif } from './ExerciseGif';
 
 
 
@@ -132,14 +132,10 @@ export function ExerciseSearchModal({
                       onClick={() => handleSelect(ex.id)}
                       className="flex-1 h-full p-2 rounded-lg border border-border bg-card hover:border-primary transition-all text-left flex items-center gap-3"
                     >
-                      {/* Uniform muscle thumbnail — heatmap if available, stock image as fallback */}
-                      {(ex.primaryMuscles && ex.primaryMuscles.length > 0) ? (
-                        <div className="w-10 h-10 flex-shrink-0 flex items-center justify-center bg-slate-800/60 rounded-md">
-                          <MuscleHeatmap
-                            primaryMuscles={ex.primaryMuscles}
-                            secondaryMuscles={ex.secondaryMuscles}
-                            height={36}
-                          />
+                      {/* Animated GIF/Image Thumbnail */}
+                      {(ex.images && ex.images.length > 0) ? (
+                        <div className="w-10 h-10 flex-shrink-0 flex items-center justify-center bg-slate-100 rounded-md overflow-hidden">
+                           <ExerciseGif images={ex.images} />
                         </div>
                       ) : ex.imageUrl ? (
                         <img

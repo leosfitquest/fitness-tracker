@@ -6,9 +6,10 @@ import { formatTime } from '../utils/math';
 interface FeedItemProps {
     item: FeedItemType;
     currentUserId: string;
+    onClick?: () => void;
 }
 
-export function FeedItem({ item, currentUserId }: FeedItemProps) {
+export function FeedItem({ item, currentUserId, onClick }: FeedItemProps) {
     const [liked, setLiked] = useState(item.has_liked);
     const [likeCount, setLikeCount] = useState(item.likes_count);
 
@@ -82,8 +83,8 @@ export function FeedItem({ item, currentUserId }: FeedItemProps) {
             </div>
 
             {/* Workout Content */}
-            <div className="mb-4">
-                <h3 className="text-lg font-bold text-primary mb-1">{item.workoutName}</h3>
+            <div className="mb-4 cursor-pointer hover:bg-white/5 p-2 -mx-2 rounded-lg transition-colors" onClick={onClick}>
+                <h3 className="text-lg font-bold text-primary mb-1 hover:underline">{item.workoutName}</h3>
                 <div className="flex gap-4 text-sm text-muted-foreground mb-3">
                     <span>⏱ {formatTime(item.durationSeconds || item.durationMinutes * 60)}</span>
                     <span>⚖️ {item.totalVolume} kg</span>

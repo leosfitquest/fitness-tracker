@@ -1,35 +1,137 @@
-/* App.css - Globale Styles & Overrides */
+/* App.css - Global Overrides & Utilities */
 
-/* Custom Scrollbar für Webkit Browser */
-::-webkit-scrollbar {
+/* ============= MODAL TRANSITIONS ============= */
+.modal-backdrop {
+  animation: fadeIn 0.2s ease-out;
+}
+.modal-content {
+  animation: scaleIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ============= CARD PRESS EFFECT ============= */
+.press-effect {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.press-effect:active {
+  transform: scale(0.98);
+}
+
+/* ============= BOTTOM NAV SAFE AREA ============= */
+.bottom-nav-safe {
+  padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+}
+
+/* ============= NUMBER BADGE ============= */
+.badge-dot {
   width: 8px;
   height: 8px;
+  background: hsl(0, 72%, 51%);
+  border-radius: 50%;
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  border: 2px solid hsl(225, 16%, 10%);
 }
 
-::-webkit-scrollbar-track {
-  background: #0f172a; 
+/* ============= PROGRESS RING ============= */
+.progress-ring-track {
+  fill: none;
+  stroke: hsl(225, 16%, 14%);
+}
+.progress-ring-fill {
+  fill: none;
+  stroke: hsl(160, 84%, 50%);
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.8s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-::-webkit-scrollbar-thumb {
-  background: #334155; 
-  border-radius: 4px;
+/* ============= TAP HIGHLIGHT ============= */
+button, a, [role="button"] {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: #475569; 
+/* ============= DISABLED STATE ============= */
+button:disabled, input:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
-/* Animation Utilities */
-.animate-in {
-  animation: fadeIn 0.3s ease-out;
+/* ============= INPUT FOCUS RING ============= */
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.25);
+  border-color: hsl(160, 84%, 50%) !important;
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(5px); }
-  to { opacity: 1; transform: translateY(0); }
+/* ============= TOAST ANIMATIONS ============= */
+.toast-enter {
+  animation: fadeInDown 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.toast-exit {
+  animation: fadeIn 0.2s ease-in reverse forwards;
 }
 
-/* Leaflet: dark background to prevent flash-of-white before tiles load */
-.leaflet-container {
-  background: #1a1a2e !important;
+/* ============= MUSCLE GROUP COLORS ============= */
+.muscle-chest { --muscle-color: #ef4444; }
+.muscle-back { --muscle-color: #3b82f6; }
+.muscle-legs { --muscle-color: #22c55e; }
+.muscle-shoulders { --muscle-color: #f59e0b; }
+.muscle-arms { --muscle-color: #a855f7; }
+.muscle-core { --muscle-color: #ec4899; }
+.muscle-glutes { --muscle-color: #f97316; }
+
+/* ============= EXERCISE IMAGE CONTAINER ============= */
+.exercise-img-container {
+  position: relative;
+  overflow: hidden;
+  border-radius: 0.75rem;
+  background: linear-gradient(135deg, hsl(225, 16%, 12%), hsl(225, 16%, 8%));
+}
+.exercise-img-container img {
+  transition: opacity 0.25s ease;
+}
+.exercise-img-container .play-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.3);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+.exercise-img-container:hover .play-overlay,
+.exercise-img-container:active .play-overlay {
+  opacity: 1;
+}
+
+/* ============= LEADERBOARD ITEM ============= */
+.leaderboard-item {
+  transition: all 0.2s ease;
+}
+.leaderboard-item:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+/* ============= PULL-TO-REFRESH AREA ============= */
+.pull-indicator {
+  height: 0;
+  overflow: hidden;
+  transition: height 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ============= STATUS BAR (connection indicator) ============= */
+.offline-bar {
+  background: linear-gradient(90deg, hsl(0, 72%, 45%), hsl(30, 90%, 50%));
+  color: white;
+  text-align: center;
+  padding: 4px 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  animation: fadeInDown 0.3s ease-out;
 }

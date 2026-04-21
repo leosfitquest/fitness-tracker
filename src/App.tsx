@@ -27,6 +27,9 @@ import { NotificationsPage } from "./components/NotificationsPage";
 import { OnboardingFlow } from "./components/OnboardingFlow";
 import { useToast } from "./components/Toast";
 import { MovementHub } from "./components/MovementHub";
+import { PrivacyPage } from "./components/PrivacyPage";
+import { PermissionManager, hasRequestedPermissions } from "./components/PermissionManager";
+import { onOnlineSync, flushQueue, isOnline, saveActiveWorkoutCache, clearActiveWorkoutCache } from './lib/offlineStore';
 
 // Hooks & Utils
 import { useWorkoutSession } from './hooks/useWorkoutSession';
@@ -87,6 +90,7 @@ export const ALL_EXERCISES: Exercise[] = RAW_EXERCISES.map((ex: RawExercise) => 
   name: ex.name,
   muscleGroup: mapPrimaryToMuscleGroup(ex.primaryMuscles),
   imageUrl: ex.images && ex.images.length > 0 ? `${GITHUB_IMAGE_BASE}${ex.images[0]}` : undefined,
+  images: ex.images,
   instructions: ex.instructions,
   equipment: ex.equipment,
   primaryMuscles: ex.primaryMuscles,
@@ -128,6 +132,8 @@ function App() {
   const [showUsernameModal, setShowUsernameModal] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [viewingUserId, setViewingUserId] = useState<string | undefined>(undefined);
+  const [showPermissions, setShowPermissions] = useState(false);
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
 
   // Superset UI State (local only)
 
@@ -246,6 +252,8 @@ function App() {
       setShowUsernameModal(true);
     } else if (!p.onboarding_completed) {
       setShowOnboarding(true);
+    } else if (!hasRequestedPermissions()) {
+      setShowPermissions(true);
     }
   };
 
@@ -277,7 +285,6 @@ function App() {
         setAllAppExercises([...customExercisesMapped, ...ALL_EXERCISES]);
 
         setWorkouts(loadedWorkouts);
-        // setSessionLogs(loadedLogs);
         setExerciseRecords(loadedRecords);
 
         // Process Historical PR Data from Logs
@@ -310,7 +317,7 @@ function App() {
     loadData();
   }, [user]);
 
-  // Save workout state to localStorage
+  // Save workout state to localStorage + IndexedDB
   useEffect(() => {
     if (mode === "active" && selectedWorkoutId) {
       const workoutState = {
@@ -324,14 +331,40 @@ function App() {
         isDeload,
         workoutStartTime,
         workoutStarted
-        // sessionPRs not saved to storage to avoid complexity on restore
       };
       localStorage.setItem('activeWorkout', JSON.stringify(workoutState));
+      saveActiveWorkoutCache(workoutState).catch(() => {});
     } else {
       localStorage.removeItem('activeWorkout');
+      clearActiveWorkoutCache().catch(() => {});
     }
   }, [mode, selectedWorkoutId, selectedExerciseId, workoutExercises, workoutExercisesData,
     activeSets, sessionStart, sessionNotes, isDeload, workoutStartTime, workoutStarted]);
+
+  // Online/offline status + auto-sync
+  useEffect(() => {
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    // Auto-flush offline queue when back online
+    onOnlineSync(async () => {
+      const { supabase: sb } = await import('./lib/supabase');
+      const count = await flushQueue(async (mutation) => {
+        try {
+          const { error } = await sb.from(mutation.table)[mutation.operation as 'insert'](mutation.data);
+          return !error;
+        } catch { return false; }
+      });
+      if (count > 0) showToast(`${count} pending change${count > 1 ? 's' : ''} synced!`, 'success');
+    });
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [showToast]);
 
   // Restore workout state (simplistic version, can be improved by moving restore logic to hook)
   useEffect(() => {
@@ -563,25 +596,23 @@ function App() {
 
       const exerciseRecordKey = exercise.exerciseId || selectedExerciseId;
       const currentRecord = exerciseRecords[exerciseRecordKey];
-      // FIX: Neue PR-Liste nur für diese Übung, nicht akkumulieren
-      const newPRs: PersonalRecord[] = [];
       const date = new Date().toISOString();
+      let prType = 'none';
+      if (!currentRecord || maxVolume > currentRecord.bestVolume) prType = 'volume';
+      if (!currentRecord || max1RM > currentRecord.estimated1RM) prType = prType === 'volume' ? 'both' : '1RM';
 
-      if (!currentRecord || maxVolume > currentRecord.bestVolume) {
-        newPRs.push({ exerciseId: exerciseRecordKey, exerciseName: exercise.name, type: 'volume', oldValue: currentRecord?.bestVolume || 0, newValue: maxVolume, achievedAt: date });
-      }
-      if (!currentRecord || max1RM > currentRecord.estimated1RM) {
-        newPRs.push({ exerciseId: exerciseRecordKey, exerciseName: exercise.name, type: '1RM', oldValue: currentRecord?.estimated1RM || 0, newValue: max1RM, achievedAt: date });
-      }
+      if (prType !== 'none') {
+        const newValue = prType === 'both' || prType === '1RM' ? max1RM : maxVolume;
+        const oldValue = prType === 'volume' ? (currentRecord?.bestVolume || 0) : (currentRecord?.estimated1RM || 0);
+        const newPR = { exerciseId: exerciseRecordKey, exerciseName: exercise.name, type: prType, oldValue, newValue, achievedAt: date };
 
-      if (newPRs.length > 0) {
-        // FIX: Keine Duplikate — nur PRs für diese Übung hinzufügen (alte entfernen)
         setSessionPRs(prev => [
-          ...prev.filter(p => p.exerciseId !== exerciseRecordKey),
-          ...newPRs
+          ...prev.filter(p => p.exerciseId !== exerciseRecordKey), // Remove old duplicate for this exercise
+          newPR
         ]);
+
         setShowPRNotification(true);
-        setTimeout(() => setShowPRNotification(false), 5000);
+        setTimeout(() => setShowPRNotification(false), 2000); // 1.5s visible + 0.5s fade buffer
       }
 
       // Update Record if improved
@@ -701,17 +732,19 @@ function App() {
   };
 
   const finishSession = () => {
-    completeWorkout(); // Hook reset
+    completeWorkout();
     setMode("overview");
     setShowSummary(false);
     localStorage.removeItem('activeWorkout');
+    clearActiveWorkoutCache().catch(() => {});
   };
 
   const confirmDiscard = () => {
-    completeWorkout(); // Hook reset
+    completeWorkout();
     setShowDiscardConfirm(false);
     setMode('overview');
     localStorage.removeItem('activeWorkout');
+    clearActiveWorkoutCache().catch(() => {});
   };
 
 
@@ -722,14 +755,31 @@ function App() {
 
 
 
-  if (authLoading) return <div className="min-h-screen bg-background text-foreground flex items-center justify-center">Loading...</div>;
+  if (authLoading) return (
+    <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
+      <div className="flex flex-col items-center gap-4">
+        <div className="w-12 h-12 rounded-xl bg-gradient-primary flex items-center justify-center animate-pulse">
+          <Dumbbell className="w-6 h-6 text-black" />
+        </div>
+        <span className="text-sm text-slate-400 font-medium">Loading...</span>
+      </div>
+    </div>
+  );
   if (!user) return <Auth />;
 
   return (
     <div className="min-h-screen bg-background text-foreground pb-20">
+      {/* Offline indicator */}
+      {isOffline && (
+        <div className="offline-bar">📡 Offline — changes will sync automatically</div>
+      )}
+
       {isLoadingData && (
         <div className="max-w-4xl mx-auto px-6 pt-6">
-          <div className="bg-blue-900/20 border border-blue-900 rounded-lg p-3 text-sm">Loading...</div>
+          <div className="glass-card rounded-xl p-3 text-sm text-slate-300 flex items-center gap-2">
+            <div className="w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+            Loading your data...
+          </div>
         </div>
       )}
 
@@ -740,13 +790,13 @@ function App() {
       )}
 
       {showPRNotification && (() => {
-        // Deduplicate PRs by exerciseId+type so we never show the same PR twice
+        // Deduplicate PRs by exerciseId so we never show the same PR twice
         const uniquePRs = sessionPRs.filter((pr, idx, arr) =>
-          arr.findIndex(p => p.exerciseId === pr.exerciseId && p.type === pr.type) === idx
+          arr.findIndex(p => p.exerciseId === pr.exerciseId) === idx
         );
         const displayPR = uniquePRs[uniquePRs.length - 1];
         return (
-          <div className="fixed top-4 right-4 bg-gradient-to-r from-amber-500 to-orange-500 text-black px-5 py-3 rounded-xl shadow-2xl z-50 flex items-start gap-3">
+          <div className="fixed top-4 right-4 bg-gradient-to-r from-amber-500 to-orange-500 text-black px-5 py-3 rounded-xl shadow-2xl z-50 flex items-start gap-3 animate-in fade-in slide-in-from-top-4 duration-500">
             <div>
               <div className="font-bold text-base flex items-center gap-1.5">🎉 NEW PR! {uniquePRs.length > 1 && <span className="text-xs bg-black/20 px-1.5 py-0.5 rounded-full">+{uniquePRs.length}</span>}</div>
               {displayPR && (
@@ -758,31 +808,43 @@ function App() {
         );
       })()}
 
+      {/* PERMISSION MANAGER */}
+      {showPermissions && (
+        <PermissionManager onComplete={() => setShowPermissions(false)} />
+      )}
+
       {/* TOP HEADER */}
       {mode !== 'active' && (
-        <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-md border-b border-border/50 px-6 py-4 flex items-center justify-between transition-all">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-gradient-to-tr from-emerald-500 to-cyan-500 rounded-lg flex items-center justify-center shadow-lg shadow-emerald-500/20">
-              <Dumbbell className="w-5 h-5 text-slate-950" strokeWidth={3} />
+        <header className="sticky top-0 z-30 glass border-b border-white/5 px-5 py-3 flex items-center justify-between transition-all">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center shadow-lg shadow-emerald-500/20">
+              <Dumbbell className="w-4 h-4 text-black" strokeWidth={3} />
             </div>
-            <h1 className="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400 tracking-tight">
+            <h1 className="text-lg font-black text-gradient tracking-tight">
               FitQuest
             </h1>
           </div>
           
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
              <button 
                 onClick={() => setCurrentPage('search')}
-                className={`p-2 rounded-full transition-colors ${currentPage === 'search' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-slate-800 hover:text-foreground'}`}
+                className={`p-2 rounded-xl transition-all press-effect ${
+                  currentPage === 'search'
+                    ? 'bg-emerald-500/10 text-emerald-400'
+                    : 'text-slate-500 hover:bg-slate-800 hover:text-white'
+                }`}
               >
                 <Search className="w-5 h-5" />
              </button>
              <button 
                 onClick={() => setCurrentPage('notifications')}
-                className={`p-2 rounded-full transition-colors relative ${currentPage === 'notifications' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-slate-800 hover:text-foreground'}`}
+                className={`p-2 rounded-xl transition-all press-effect relative ${
+                  currentPage === 'notifications'
+                    ? 'bg-emerald-500/10 text-emerald-400'
+                    : 'text-slate-500 hover:bg-slate-800 hover:text-white'
+                }`}
               >
                 <Bell className="w-5 h-5" />
-                {/* Note: In a real app we'd conditionally show a red dot here if unread notifications exist */}
              </button>
           </div>
         </header>
@@ -796,7 +858,7 @@ function App() {
 
         {/* FEED */}
         {currentPage === 'feed' && (
-          <FeedPage onNavigate={setCurrentPage} />
+          <FeedPage onNavigate={setCurrentPage} onSelectSession={setSelectedSession} />
         )}
 
         {/* MOVEMENT HUB (Steps + Run) */}
@@ -850,7 +912,14 @@ function App() {
               setViewingUserId(uid);
               // Already on profile page, but this ensures we reload data for new user
             }}
+            onSelectSession={setSelectedSession}
+            onNavigate={setCurrentPage}
           />
+        )}
+
+        {/* PRIVACY */}
+        {currentPage === 'privacy' && (
+          <PrivacyPage onBack={() => setCurrentPage('profile')} />
         )}
 
         {/* USERNAME MODAL */}
@@ -909,13 +978,13 @@ function App() {
         {/* MODALS */}
         {
           showDiscardConfirm && (
-            <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-              <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 max-w-sm w-full text-center">
-                <h2 className="text-xl font-bold mb-4">End Workout?</h2>
-                <p className="text-slate-400 mb-6">Progress will be lost.</p>
+            <div className="fixed inset-0 bg-black/85 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+              <div className="glass-card rounded-2xl p-6 max-w-sm w-full text-center animate-scale-in">
+                <h2 className="text-xl font-bold text-white mb-2">End Workout?</h2>
+                <p className="text-slate-400 text-sm mb-6">All unsaved progress will be lost.</p>
                 <div className="flex gap-3">
-                  <button onClick={() => setShowDiscardConfirm(false)} className="flex-1 py-3 rounded-lg bg-slate-800">Cancel</button>
-                  <button onClick={confirmDiscard} className="flex-1 py-3 rounded-lg bg-red-500 text-white">End</button>
+                  <button onClick={() => setShowDiscardConfirm(false)} className="flex-1 py-3 rounded-xl bg-slate-800/60 text-white font-semibold press-effect">Cancel</button>
+                  <button onClick={confirmDiscard} className="flex-1 py-3 rounded-xl bg-red-500 text-white font-semibold press-effect">End</button>
                 </div>
               </div>
             </div>
@@ -924,11 +993,18 @@ function App() {
 
         {
           showSummary && (
-            <div className="fixed inset-0 bg-black/95 flex items-center justify-center z-50 p-6">
-              <div className="bg-card border border-border rounded-xl p-8 max-w-sm w-full text-center shadow-2xl">
-                <div className="text-5xl mb-4">🎉</div>
-                <h2 className="text-3xl font-bold text-foreground mb-2">Workout Complete!</h2>
-                <p className="text-muted-foreground mb-6">{formatTime(workoutDuration || 0)} • {totalVolume} kg • {totalSetsCompleted} sets</p>
+            <div className="fixed inset-0 bg-black/95 backdrop-blur-md flex items-center justify-center z-50 p-6 animate-fade-in">
+              <div className="glass-card rounded-2xl p-8 max-w-sm w-full text-center animate-scale-in">
+                <div className="text-5xl mb-3 animate-float">🎉</div>
+                <h2 className="text-2xl font-bold text-white mb-1">Workout Complete!</h2>
+                <p className="text-slate-400 text-sm mb-6">{formatTime(workoutDuration || 0)} • {totalVolume.toLocaleString()} kg • {totalSetsCompleted} sets</p>
+
+                {sessionPRs.length > 0 && (
+                  <div className="mb-4 p-3 bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20 rounded-xl">
+                    <div className="text-sm font-bold text-amber-400 mb-1">🏆 {sessionPRs.length} Personal Record{sessionPRs.length > 1 ? 's' : ''}!</div>
+                    <div className="text-xs text-slate-400">{sessionPRs.map(p => p.exerciseName).join(', ')}</div>
+                  </div>
+                )}
 
                 {selectedSession && (
                   <button
@@ -936,13 +1012,13 @@ function App() {
                       await shareSessionToFeed(selectedSession.id);
                       showToast("Shared to Feed!", "success");
                     }}
-                    className="w-full py-3 mb-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-500 transition-colors"
+                    className="w-full py-3 mb-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold rounded-xl hover:opacity-90 transition-opacity press-effect"
                   >
                     Post to Feed 🌍
                   </button>
                 )}
 
-                <button onClick={finishSession} className="w-full py-3 bg-primary text-primary-foreground font-bold rounded-xl hover:bg-primary/90 transition-colors">
+                <button onClick={finishSession} className="w-full py-3 bg-gradient-primary text-black font-bold rounded-xl hover:opacity-90 transition-opacity press-effect">
                   Back to Home
                 </button>
               </div>
